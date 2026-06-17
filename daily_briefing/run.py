@@ -1,48 +1,74 @@
-"""Daily Briefing 파이프라인 진입점.
+"""Daily Briefing pipeline — Claude-driven HTML builder.
 
-실행: python run.py
-      python run.py --dry-run   (Gmail 발송 생략, 이메일 파라미터만 출력)
+Claude Code가 이 루틴을 다음 순서로 실행한다:
+
+  1. fetch_news.get_kst_window() 으로 시간 범위 확인
+     (전날 KST 09:00 → 오늘 KST 09:00)
+  2. Exa MCP (우선) 또는 Naver Search MCP (fallback) 으로 뉴스 수집
+     - Naver 사용 시: link 가 아닌 originallink 사용 (리다이렉트 방지)
+  3. 각 기사에 category (config.CATEGORIES 중 하나) 와 impact_score (1-10) 부여
+  4. 최고 impact_score 기사 선정 후 한국어 인사이트 작성 (4개 섹션):
+       배경 / 핵심 내용 / 산업 영향 / SK온 관점에서의 시사점
+  5. /tmp/briefing_input.json 작성 (하단 INPUT SCHEMA 참조)
+  6. python run.py --input /tmp/briefing_input.json 실행
+  7. Gmail MCP create_draft 호출 (subject, to, htmlBody 사용)
+
+INPUT SCHEMA:
+{
+  "date_str": "2026-06-17",
+  "articles": [
+    {
+      "id": 1,
+      "title": "...",
+      "url": "https://원본-직접-링크",
+      "publishedAt": "2026-06-16T10:00:00+09:00",
+      "category": "EV Maker",
+      "summary": "요약 1줄\n요약 2줄\n요약 3줄",
+      "impact_score": 8
+    }
+  ],
+  "insight": "한국어 인사이트 본문 (4개 섹션, ~600단어)..."
+}
 """
 import sys
 import os
-from datetime import datetime, timezone
+import json
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fetch_news import fetch_articles
-from summarize import summarize_articles
-from insight import generate_insight
+from datetime import datetime, timedelta, timezone
 from send_email import build_email
 
+KST = timezone(timedelta(hours=9))
 
-def main(dry_run: bool = False):
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    print(f"[1/4] 뉴스 수집 중... ({date_str})")
-    articles = fetch_articles()
-    print(f"      {len(articles)}건 수집 완료")
+def main():
+    if "--input" not in sys.argv:
+        print(__doc__)
+        sys.exit(1)
 
-    print("[2/4] 기사 요약 중... (Haiku 배치)")
-    summarized = summarize_articles(articles)
-    summarized.sort(key=lambda x: x.get("impact_score", 0), reverse=True)
+    idx = sys.argv.index("--input")
+    input_file = sys.argv[idx + 1]
 
-    print("[3/4] 인사이트 생성 중... (Sonnet)")
-    top_article = summarized[0]
-    insight_text = generate_insight(top_article)
-    print(f"      주목 기사: {top_article['title'][:60]}...")
+    with open(input_file, encoding="utf-8") as f:
+        data = json.load(f)
 
-    print("[4/4] 이메일 파라미터 생성 완료")
-    email_params = build_email(summarized, insight_text, top_article, date_str)
+    date_str = data.get("date_str") or datetime.now(KST).strftime("%Y-%m-%d")
+    articles = sorted(data["articles"], key=lambda x: x.get("impact_score", 0), reverse=True)
+    insight_text = data["insight"]
+    top_article = articles[0]
 
-    if dry_run:
-        print(f"      제목: {email_params['subject']}")
-        print(f"      수신자: {email_params['to']}")
-        print("      --dry-run 모드: Gmail 발송 생략")
-        return email_params
+    email_params = build_email(articles, insight_text, top_article, date_str)
 
+    output = "/tmp/email_output.json"
+    with open(output, "w", encoding="utf-8") as f:
+        json.dump(email_params, f, ensure_ascii=False, indent=2)
+
+    print(f"[OK] 제목: {email_params['subject']}")
+    print(f"     수신자: {email_params['to']}")
+    print(f"     HTML → {output}")
     return email_params
 
 
 if __name__ == "__main__":
-    dry = "--dry-run" in sys.argv
-    main(dry_run=dry)
+    main()

@@ -1,15 +1,27 @@
+from config import RECIPIENT_EMAIL, CATEGORIES
+
+
 def build_email(articles: list[dict], insight_text: str, top_article: dict, date_str: str) -> dict:
     """Gmail MCP create_draft에 전달할 이메일 파라미터를 반환한다."""
-    from config import RECIPIENT_EMAIL
-
     subject = f"[AI Morning Brief] {date_str} 배터리 (EV/ESS) 핵심 동향"
 
+    # 카테고리 순서(config.CATEGORIES) → 카테고리 내 impact_score 내림차순
+    cat_order = {cat: i for i, cat in enumerate(CATEGORIES)}
+    sorted_articles = sorted(
+        articles,
+        key=lambda a: (cat_order.get(a.get("category", ""), 99), -a.get("impact_score", 0)),
+    )
+
     article_rows = ""
-    for a in articles:
-        summary = a.get("summary", "").replace("\\n", "<br>")
+    prev_cat = None
+    for a in sorted_articles:
+        summary = a.get("summary", "").replace("\\n", "<br>").replace("\n", "<br>")
+        cat = a.get("category", "")
+        cat_bg = ' style="background:#fafafa"' if cat != prev_cat else ""
+        prev_cat = cat
         article_rows += f"""
-        <tr>
-          <td style="padding:8px;border:1px solid #ddd;color:#555;font-size:12px">{a.get("category","")}</td>
+        <tr{cat_bg}>
+          <td style="padding:8px;border:1px solid #ddd;color:#555;font-size:12px">{cat}</td>
           <td style="padding:8px;border:1px solid #ddd;font-size:13px">
             <a href="{a.get('url','')}" style="color:#1a73e8;text-decoration:none">{a['title']}</a><br>
             <span style="color:#666;font-size:12px">{summary}</span>
@@ -49,7 +61,7 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
 
 <hr style="margin-top:40px;border:none;border-top:1px solid #eee">
 <p style="color:#aaa;font-size:11px;text-align:center">
-  본 브리핑은 Claude AI가 자동 생성한 콘텐츠입니다. | {date_str} 09:00 기준
+  본 브리핑은 Claude AI가 자동 생성한 콘텐츠입니다. | {date_str} KST 09:00 기준
 </p>
 </body></html>"""
 
