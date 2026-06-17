@@ -10,7 +10,8 @@ HAIKU_MODEL = "claude-haiku-4-5-20251001"
 SONNET_MODEL = "claude-sonnet-4-6"
 
 NEWS_QUERY = (
-    '("EV battery" OR "electric vehicle battery" OR "battery" OR "배터리") AND '
+    '("EV battery" OR "electric vehicle battery" OR "battery" OR "배터리" OR '
+    '"energy storage" OR "ESS" OR "grid storage" OR "stationary storage") AND '
     '("SK On" OR "CATL" OR "LG Energy" OR "Samsung SDI" OR "Panasonic" OR '
     '"lithium" OR "nickel" OR "cobalt" OR "IRA" OR '
     '"Ford" OR "GM" OR "Hyundai" OR "Tesla" OR "BYD")'
@@ -22,6 +23,7 @@ CATEGORIES = [
     "SK온/배터리 경쟁사",
     "에너지 정책/규제",
     "배터리 광물/공급망",
+    "ESS/에너지저장",
 ]
 
 MAX_ARTICLES = 15
