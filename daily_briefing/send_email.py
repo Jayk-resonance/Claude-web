@@ -1,4 +1,28 @@
+import re
+
 from config import RECIPIENT_EMAIL, CATEGORIES
+
+
+def _render_insight_html(insight_text: str) -> str:
+    """인사이트 텍스트를 HTML로 변환한다.
+
+    ## 소제목  →  굵은 섹션 헤딩
+    **text**   →  <strong>text</strong>
+    """
+    lines = []
+    for line in insight_text.split("\n"):
+        if not line.strip():
+            continue
+        if line.startswith("## "):
+            heading = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', line[3:].strip())
+            lines.append(
+                f"<p style='margin:20px 0 4px 0;font-weight:bold;font-size:15px;"
+                f"color:#1a1a1a;border-left:3px solid #1a73e8;padding-left:8px'>{heading}</p>"
+            )
+        else:
+            rendered = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', line)
+            lines.append(f"<p style='margin:0 0 10px 0'>{rendered}</p>")
+    return "".join(lines)
 
 
 def build_email(articles: list[dict], insight_text: str, top_article: dict, date_str: str) -> dict:
@@ -28,10 +52,7 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
           </td>
         </tr>"""
 
-    insight_html = "".join(
-        f"<p style='margin:0 0 12px 0'>{line}</p>"
-        for line in insight_text.split("\n") if line.strip()
-    )
+    insight_html = _render_insight_html(insight_text)
 
     html_body = f"""
 <html><body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;color:#333">
