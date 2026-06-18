@@ -1,6 +1,33 @@
 import re
+from datetime import datetime, timedelta, timezone
 
 from config import RECIPIENT_EMAIL, CATEGORIES
+
+KST = timezone(timedelta(hours=9))
+
+
+def _format_date_kst(published_at: str) -> str:
+    """ISO8601 문자열을 KST MM/DD 형식으로 변환."""
+    try:
+        dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+        dt_kst = dt.astimezone(KST)
+        return dt_kst.strftime("%m/%d")
+    except Exception:
+        return ""
+
+
+def _impact_circle(score: int) -> str:
+    """impact_score에 따라 색상 동그라미 + 점수를 반환."""
+    if score >= 8:
+        color, label = "#e53935", "빨강"
+    elif score >= 5:
+        color, label = "#1a73e8", "파랑"
+    else:
+        color, label = "#aaaaaa", "회색"
+    return (
+        f'<span style="font-size:16px;color:{color}" title="{label}">●</span>'
+        f'<span style="font-size:12px;margin-left:3px">{score}</span>'
+    )
 
 
 def _render_insight_html(insight_text: str) -> str:
@@ -41,15 +68,19 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
     for a in sorted_articles:
         summary = a.get("summary", "").replace("\\n", "<br>").replace("\n", "<br>")
         cat = a.get("category", "")
+        date_str_cell = _format_date_kst(a.get("publishedAt", ""))
+        score = a.get("impact_score", 0)
         cat_bg = ' style="background:#fafafa"' if cat != prev_cat else ""
         prev_cat = cat
         article_rows += f"""
         <tr{cat_bg}>
           <td style="padding:8px;border:1px solid #ddd;color:#555;font-size:12px">{cat}</td>
+          <td style="padding:8px;border:1px solid #ddd;color:#555;font-size:12px;white-space:nowrap">{date_str_cell}</td>
           <td style="padding:8px;border:1px solid #ddd;font-size:13px">
             <a href="{a.get('url','')}" style="color:#1a73e8;text-decoration:none">{a['title']}</a><br>
             <span style="color:#666;font-size:12px">{summary}</span>
           </td>
+          <td style="padding:8px;border:1px solid #ddd;text-align:center;white-space:nowrap">{_impact_circle(score)}</td>
         </tr>"""
 
     insight_html = _render_insight_html(insight_text)
@@ -66,7 +97,9 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
 <table style="width:100%;border-collapse:collapse">
   <tr style="background:#f5f5f5">
     <th style="padding:8px;border:1px solid #ddd;text-align:left;width:140px">카테고리</th>
+    <th style="padding:8px;border:1px solid #ddd;text-align:left;width:50px">날짜</th>
     <th style="padding:8px;border:1px solid #ddd;text-align:left">제목 / 요약</th>
+    <th style="padding:8px;border:1px solid #ddd;text-align:center;width:60px">중요도</th>
   </tr>
   {article_rows}
 </table>
