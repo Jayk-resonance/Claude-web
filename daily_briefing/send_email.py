@@ -86,7 +86,13 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
     insight_html = _render_insight_html(insight_text)
 
     html_body = f"""
-<html><body style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;color:#333">
+<html>
+<head>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+</style>
+</head>
+<body style="font-family:'Noto Sans KR',Arial,sans-serif;max-width:800px;margin:0 auto;color:#333">
 
 <h2 style="color:#1a1a1a;border-bottom:2px solid #1a73e8;padding-bottom:8px">
   📰 AI Morning Brief — {date_str}
