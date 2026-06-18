@@ -3,7 +3,13 @@ import os
 NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-RECIPIENT_EMAIL = "jupiter@sk.com"
+RECIPIENT_EMAIL = [
+    "jupiter@sk.com",
+    "hc.yoon@sk.com",
+    "lee.hojeong@sk.com",
+    "hoyoonlee@sk.com",
+    "jslim27@sk.com",
+]
 SENDER_EMAIL = "kjwgv1442@gmail.com"
 
 HAIKU_MODEL = "claude-haiku-4-5-20251001"

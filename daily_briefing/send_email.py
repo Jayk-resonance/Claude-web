@@ -120,7 +120,7 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
 </body></html>"""
 
     return {
-        "to": [RECIPIENT_EMAIL],
+        "to": RECIPIENT_EMAIL if isinstance(RECIPIENT_EMAIL, list) else [RECIPIENT_EMAIL],
         "subject": subject,
         "htmlBody": html_body,
     }
