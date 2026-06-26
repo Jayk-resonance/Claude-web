@@ -11,7 +11,8 @@ Claude Code가 이 루틴을 다음 순서로 실행한다:
        배경 / 핵심 내용 / 산업 영향 / SK온 관점에서의 시사점
   5. /tmp/briefing_input.json 작성 (하단 INPUT SCHEMA 참조)
   6. python run.py --input /tmp/briefing_input.json 실행
-  7. Gmail MCP create_draft 호출 (subject, to, htmlBody 사용)
+  7. python run.py --input /tmp/briefing_input.json 실행으로 Gmail API 자동 발송
+     (--draft 플래그 사용 시 발송 생략)
 
 INPUT SCHEMA:
 {
@@ -68,7 +69,7 @@ def main():
     print(f"     수신자: {email_params['to']}")
     print(f"     HTML → {output}")
 
-    if "--send" in sys.argv:
+    if "--draft" not in sys.argv:
         from gmail_sender import send_email_via_api
         msg_id = send_email_via_api(
             email_params["to"], email_params["subject"], email_params["htmlBody"]

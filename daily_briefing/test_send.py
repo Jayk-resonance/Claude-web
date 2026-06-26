@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from gmail_sender import send_email_via_api
 
-TEST_TO = ["kjwgv1442@gmail.com"]
+TEST_TO = ["jupiter@sk.com"]
 REQUIRED = ("GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN")
 
 
