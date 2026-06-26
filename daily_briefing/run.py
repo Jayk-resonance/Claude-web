@@ -67,6 +67,14 @@ def main():
     print(f"[OK] 제목: {email_params['subject']}")
     print(f"     수신자: {email_params['to']}")
     print(f"     HTML → {output}")
+
+    if "--send" in sys.argv:
+        from gmail_sender import send_email_via_api
+        msg_id = send_email_via_api(
+            email_params["to"], email_params["subject"], email_params["htmlBody"]
+        )
+        print(f"[SENT] Gmail API message id: {msg_id}")
+
     return email_params
 
 
