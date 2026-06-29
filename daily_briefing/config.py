@@ -8,6 +8,7 @@ SENDER_EMAIL = "kjwgv1442@gmail.com"
 
 HAIKU_MODEL = "claude-haiku-4-5-20251001"
 SONNET_MODEL = "claude-sonnet-4-6"
+OPUS_MODEL = "claude-opus-4-8"  # debate: synthesis(JUDGE) 전용 (최종 판단 집약)
 
 NEWS_QUERY = (
     '("EV battery" OR "electric vehicle battery" OR "battery" OR "배터리") AND '
