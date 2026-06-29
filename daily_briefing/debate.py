@@ -38,9 +38,10 @@ SYNTHESIS_SYSTEM = (
 )
 
 
-def _ask(model: str, system: str, prompt: str, tools=None, max_tokens: int = 2500) -> str:
-    """단일 역할 호출. 역할별로 model 을 받는다. 웹검색 server-tool 의 pause_turn 루프와
-    text 블록 추출을 처리한다."""
+def _ask(model: str, system: str, prompt: str, tools=None, max_tokens: int = 2500,
+         effort: str = "high") -> str:
+    """단일 역할 호출. 역할별로 model 과 effort 를 받는다. 웹검색 server-tool 의
+    pause_turn 루프와 text 블록 추출을 처리한다."""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     messages = [{"role": "user", "content": prompt}]
     while True:
@@ -49,7 +50,7 @@ def _ask(model: str, system: str, prompt: str, tools=None, max_tokens: int = 250
             max_tokens=max_tokens,
             system=system,
             thinking={"type": "adaptive"},
-            output_config={"effort": "high"},
+            output_config={"effort": effort},
             tools=tools or [],
             messages=messages,
         )
@@ -69,6 +70,7 @@ def argue(topic: str, system: str) -> str:
         f"질문: {topic}\n\n당신의 입장에서 근거를 갖춘 논거를 전개하라. "
         "웹 검색으로 최신 사실·규제·사례를 확인하고 출처를 제시하라.",
         tools=WEB_SEARCH,
+        effort="medium",
     )
 
 
@@ -80,7 +82,7 @@ def rebut(topic: str, system: str, opponent: str, own_prior: str = None) -> str:
         "상대의 주장을 구체적으로 반박하고 당신의 입장을 강화하라. "
         "필요하면 웹 검색으로 근거를 확인하라."
     )
-    return _ask(SONNET_MODEL, system, "\n\n".join(parts), tools=WEB_SEARCH)
+    return _ask(SONNET_MODEL, system, "\n\n".join(parts), tools=WEB_SEARCH, effort="medium")
 
 
 def synthesize(topic: str, pro_1: str, con_1: str, pro_2: str, con_2: str) -> str:
