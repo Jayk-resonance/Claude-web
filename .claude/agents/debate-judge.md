@@ -1,6 +1,7 @@
 ---
 name: debate-judge
 description: 토론 결과를 종합하는 중립 심판(JUDGE) 전용 서브에이전트. /debate 명령의 마지막 단계에서만 호출한다.
+tools: []
 model: opus
 ---
 
