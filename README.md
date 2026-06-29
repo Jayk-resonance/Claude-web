@@ -29,14 +29,16 @@ Claude Code 세션에서 슬래시 명령으로 실행합니다:
 ## 진행 방식
 
 다섯 단계를 서브에이전트로 순차 실행합니다. 각 단계는 앞 단계의 발언을 입력으로 받습니다.
+각 역할은 `.claude/agents/` 의 **독립 파일로 정의**되어, 모델과 페르소나가 고정되고 서로
+격리됩니다.
 
-| 단계 | 역할 | 모델 | 웹 검색 |
-|------|------|------|---------|
-| 1 | PRO 입론 | Sonnet | ✅ |
-| 2 | CON 반박 | Sonnet | ✅ |
-| 3 | PRO 재반박 | Sonnet | ✅ |
-| 4 | CON 재반박 | Sonnet | ✅ |
-| 5 | JUDGE 종합 | Opus | ❌ (평가만) |
+| 단계 | 역할 | 에이전트 | 모델 | 웹 검색 |
+|------|------|----------|------|---------|
+| 1 | PRO 입론 | `debate-pro` | Sonnet | ✅ |
+| 2 | CON 반박 | `debate-con` | Sonnet | ✅ |
+| 3 | PRO 재반박 | `debate-pro` | Sonnet | ✅ |
+| 4 | CON 재반박 | `debate-con` | Sonnet | ✅ |
+| 5 | JUDGE 종합 | `debate-judge` | Opus | ❌ (평가만) |
 
 - 변론(PRO/CON)은 **웹 검색으로 최신 근거·출처를 확인**하고, 종합(JUDGE)은 검색 없이
   양측을 평가합니다.
@@ -47,5 +49,13 @@ Claude Code 세션에서 슬래시 명령으로 실행합니다:
 
 ## 구성
 
-- `.claude/commands/debate.md` — `/debate` 명령 정의(토론 진행 지침과 페르소나)
-- `CLAUDE.md` — 작업 가이드라인
+```
+.claude/
+├── agents/
+│   ├── debate-pro.md      찬성(PRO) 변론 에이전트   — 모델: Sonnet
+│   ├── debate-con.md      반대(CON) 변론 에이전트   — 모델: Sonnet
+│   └── debate-judge.md    종합 심판(JUDGE) 에이전트 — 모델: Opus
+└── commands/
+    └── debate.md          위 세 에이전트를 순서대로 호출하는 /debate 명령
+CLAUDE.md                  작업 가이드라인
+```
