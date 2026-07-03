@@ -1,0 +1,47 @@
+---
+# ─────────────────────────────────────────────────────────────
+# 리포트 표준 메타데이터 (= DB의 '컬럼'). 매 인제스트마다 이 형식을 강제한다.
+# 값을 모르면 빈칸이 아니라 null 로 둔다. 숫자는 단위를 unit 에 명시한다.
+# ─────────────────────────────────────────────────────────────
+report_id: 2026-01-15_미래에셋_LGES     # = 파일명(확장자 제외). YYYY-MM-DD_증권사_커버리지
+date: 2026-01-15                        # 리포트 발간일 (YYYY-MM-DD)
+house: 미래에셋                          # 증권사
+analyst: null                           # 애널리스트명 (없으면 null)
+coverage: LGES                          # LGES | 삼성SDI | SK온 | 산업
+report_type: 기업                        # 기업 | 산업
+opinion: 매수                            # 매수 | 중립 | 매도 | null (산업리포트면 null)
+target_price: 450000                    # 목표주가(원). 없으면 null
+prev_target_price: 420000               # 직전 목표주가(원). 상향/하향 델타 계산용. 없으면 null
+
+# 세그먼트/전사 손익·추정치. estimates.csv 로도 펼쳐진다.
+estimates:
+  - {company: LGES, segment: 전사, fy: 2026, period: FY, metric: 영업이익, value: 2.1, unit: 조원, page: 3}
+  - {company: LGES, segment: 전사, fy: 2026, period: FY, metric: 매출,   value: 30.5, unit: 조원, page: 3}
+
+# 이슈별 스탠스. stances.csv 로도 펼쳐진다.
+# stance_score: -2(매우부정) -1 0(중립) +1 +2(매우긍정)
+stances:
+  - {issue: LFP,      company: LGES, stance_score: 1,  summary: "26년 하반기 양산 목표, 경쟁사 대비 1년 후행", page: 5}
+  - {issue: 북미CAPEX, company: LGES, stance_score: -1, summary: "IRA 불확실성으로 증설 속도 조절 가능성", page: 6}
+
+key_issues: [LFP, 북미CAPEX, 수율]        # 이 리포트가 다룬 이슈 태그
+source_pdf: inbox/미래에셋_20260115.pdf   # 원본 경로 (모든 숫자의 감사 추적용)
+---
+
+## 핵심 요약
+<!-- 3~5줄. 이 리포트의 결론. -->
+
+## 투자의견·목표주가 (도출 근거)
+<!-- 밸류에이션 방식(EV/EBITDA, P/B 등), 멀티플, 목표주가 산출 논리. 직전 대비 변경 사유. -->
+
+## 사업부문별 손익
+<!-- 회사·세그먼트별 매출/영업이익/영업이익률/출하량 표. frontmatter estimates 와 일치시킬 것. -->
+
+## 이슈별 코멘트
+<!-- LFP / 46파이 / ESS / 북미CAPEX / 수율 등. frontmatter stances 와 일치시킬 것. -->
+
+## 리스크 요인
+<!-- 하방 리스크. 태그화 가능하도록 항목별로. -->
+
+## 원문 인용
+<!-- 핵심 주장은 원문 그대로 보존. 환각 방지 + 감사 가능. (p.N) 형식으로 페이지 표기. -->
