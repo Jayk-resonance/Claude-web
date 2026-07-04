@@ -125,6 +125,8 @@ def main(check_only=False):
             continue
         if name.startswith("actuals_"):
             actuals_sets.append(d)
+        elif name.startswith("viewnarr_") or "report_id" not in d:
+            continue  # 파생 산출물(서술 등)은 리포트가 아님
         else:
             reports.append(d)
 
