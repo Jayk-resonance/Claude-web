@@ -13,10 +13,13 @@ opinion: 매수                            # 매수 | 중립 | 매도 | null (�
 target_price: 450000                    # 목표주가(원). 없으면 null
 prev_target_price: 420000               # 직전 목표주가(원). 상향/하향 델타 계산용. 없으면 null
 
-# 세그먼트/전사 손익·추정치. estimates.csv 로도 펼쳐진다.
+# 세그먼트/전사 손익·추정치. estimates.csv 로도 펼쳐진다. (스키마 v2)
+# segment: 원문 그대로 / segment_std: NORMALIZATION.md 매핑 / period: FY|1Q~4Q
+# ampc_basis: excl|incl|incl_unknown|na / AMPC 금액은 metric=AMPC 별도 행
 estimates:
-  - {company: LGES, segment: 전사, fy: 2026, period: FY, metric: 영업이익, value: 2.1, unit: 조원, page: 3}
-  - {company: LGES, segment: 전사, fy: 2026, period: FY, metric: 매출,   value: 30.5, unit: 조원, page: 3}
+  - {company: LGES, segment: 전사, segment_std: 전사, fy: 2026, period: FY, metric: 영업이익, value: 993, unit: 십억원, ampc_basis: incl, page: 3}
+  - {company: LGES, segment: 전사, segment_std: 전사, fy: 2026, period: FY, metric: AMPC, value: 1425, unit: 십억원, ampc_basis: na, page: 3}
+  - {company: LGES, segment: ESS, segment_std: ESS, fy: 2026, period: 2Q, metric: 매출, value: 2062, unit: 십억원, ampc_basis: excl, page: 3}
 
 # 이슈별 스탠스. stances.csv 로도 펼쳐진다.
 # stance_score: -2(매우부정) -1 0(중립) +1 +2(매우긍정)
@@ -25,6 +28,10 @@ stances:
   - {issue: 북미CAPEX, company: LGES, stance_score: -1, summary: "IRA 불확실성으로 증설 속도 조절 가능성", page: 6}
 
 key_issues: [LFP, 북미CAPEX, 수율]        # 이 리포트가 다룬 이슈 태그
+# 산업 리포트/산업 전망 포함 시 (없으면 빈 리스트)
+industry_views:
+  - {scope: 북미ESS, fy: 2026, metric: 수요, value: null, unit: GWh, direction: 2, summary: "AI 데이터센터發 수요 급증", page: 2}
+top_picks: []                             # 산업 리포트의 최선호주
 source_pdf: inbox/미래에셋_20260115.pdf   # 원본 경로 (모든 숫자의 감사 추적용)
 ---
 
