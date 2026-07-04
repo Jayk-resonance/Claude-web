@@ -19,6 +19,13 @@ AMPC_BASIS = {"excl", "incl", "incl_unknown", "na"}
 PERIODS = {"FY", "1Q", "2Q", "3Q", "4Q"}
 OPINIONS = {"매수", "중립", "매도", None}
 
+COMPANY_STD = {"LG에너지솔루션": "LGES", "엘지에너지솔루션": "LGES", "LG Energy Solution": "LGES"}
+
+
+def canon_company(c):
+    return COMPANY_STD.get(c, c)
+
+
 warnings = []
 
 
@@ -171,7 +178,7 @@ def main(check_only=False):
                     "fy", "period", "metric", "value", "unit", "ampc_basis", "source_page"])
         for r in sorted(reports, key=lambda x: x["date"]):
             for e in r.get("estimates", []):
-                w.writerow([r["report_id"], r["date"], r["house"], e.get("company"),
+                w.writerow([r["report_id"], r["date"], r["house"], canon_company(e.get("company")),
                             e.get("segment"), e.get("segment_std"), e.get("fy"),
                             e.get("period"), e.get("metric"), e.get("value"),
                             e.get("unit"), e.get("ampc_basis"), e.get("page")])
@@ -183,7 +190,7 @@ def main(check_only=False):
                     "stance_score", "summary", "source_page"])
         for r in sorted(reports, key=lambda x: x["date"]):
             for s in r.get("stances", []):
-                w.writerow([r["report_id"], r["date"], r["house"], s.get("company"),
+                w.writerow([r["report_id"], r["date"], r["house"], canon_company(s.get("company")),
                             s.get("issue"), s.get("stance_score"),
                             s.get("summary"), s.get("page")])
 
