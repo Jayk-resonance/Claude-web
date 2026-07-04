@@ -38,7 +38,9 @@ def validate(r):
             e["segment_std"] = "전사"
             e["metric"] = "AMPC"
         if e.get("segment_std") not in SEG_STD:
-            warn(rid, f"segment_std 비표준: {e.get('segment_std')} (segment={e.get('segment')})")
+            # 3사 부문이 아닌 밸류체인/소재 등은 '기타'로 강제 (원문 segment 보존)
+            warn(rid, f"segment_std '기타'로 강제: {e.get('segment_std')} (segment={e.get('segment')})")
+            e["segment_std"] = "기타"
         if e.get("ampc_basis") not in AMPC_BASIS:
             warn(rid, f"ampc_basis 비표준: {e.get('ampc_basis')}")
         if e.get("period") not in PERIODS:
