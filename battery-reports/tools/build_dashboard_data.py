@@ -19,7 +19,8 @@ OUT = os.path.join(ROOT, "projects", "dashboard")
 os.makedirs(OUT, exist_ok=True)
 
 COMPANIES = ["LGES", "삼성SDI", "SK온"]
-ANNOUNCE = {("LGES", 2026, "1Q"): "2026-04-08", ("삼성SDI", 2026, "1Q"): "2026-04-28"}
+ANNOUNCE = {("LGES", 2026, "1Q"): "2026-04-08", ("삼성SDI", 2026, "1Q"): "2026-04-28",
+            ("SK온", 2026, "1Q"): "2026-05-13"}
 
 est = list(csv.DictReader(open(f"{IDX}/estimates.csv", encoding="utf-8")))
 stances = list(csv.DictReader(open(f"{IDX}/stances.csv", encoding="utf-8")))
@@ -100,7 +101,8 @@ ISSUE_ALIAS = {"배터리판매량":"판매량","북미EV":"북미수요","유�
 mat = collections.defaultdict(list)
 for s in stances:
     comp = s["company"]
-    if comp not in COMPANIES:
+    rm_s = rmeta.get(s["report_id"])
+    if comp not in COMPANIES or not rm_s or rm_s.get("report_type") != "기업":
         continue
     issue = ISSUE_ALIAS.get(s["issue"], s["issue"])
     mat[(issue, comp)].append({"house": s["house"], "date": s["date"],
@@ -129,8 +131,9 @@ f3 = dict(f3)
 # ---------- F4: 컨센서스 적중률 ----------
 f4 = {"events": []}
 for (comp, fy, period), adate in ANNOUNCE.items():
+    seg_t = "배터리합계" if comp == "SK온" else "전사"
     act_rows = [a for a in actuals if a["company"] == comp and a["fy"] == str(fy)
-                and a["period"] == period and a["segment_std"] == "전사"]
+                and a["period"] == period and a["segment_std"] == seg_t]
     act = {}
     for a in act_rows:
         act.setdefault(a["metric"], float(a["value"]))
@@ -143,9 +146,9 @@ for (comp, fy, period), adate in ANNOUNCE.items():
             continue
         if rm["date"] < "2026-02-01":
             continue  # 직전 프리뷰 시즌만
-        op, basis = op_incl(rows, comp, "전사", fy, period)
+        op, basis = op_incl(rows, comp, seg_t, fy, period)
         rev = next((r["value"] for r in rows if r["company"] == comp
-                    and r["segment_std"] == "전사" and r["fy"] == str(fy)
+                    and r["segment_std"] == seg_t and r["fy"] == str(fy)
                     and r["period"] == period and r["metric"] == "매출"), None)
         if op is None and rev is None:
             continue
@@ -171,6 +174,7 @@ for rid, rows in by_report.items():
         if op is None:
             continue
         vint.append({"house": rm["house"], "date": rm["date"], "report_id": rid,
+                     "src_type": rm["report_type"],
                      "company": comp, "op_est": op, "op_basis": basis,
                      "op_actual": ACT_FY25[comp]["영업이익"],
                      "op_err": round(op - ACT_FY25[comp]["영업이익"], 1)})
@@ -217,7 +221,7 @@ for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리�
     dots = []
     for rid, rows in by_report.items():
         rm = rmeta.get(rid)
-        if not rm:
+        if not rm or rm.get("report_type") != "기업":
             continue
         for fy in [2025, 2026, 2027, 2028]:
             op, basis = op_incl(rows, comp, seg, fy, "FY")
@@ -233,12 +237,108 @@ for v in iviews:
                                     "value": v["value"], "unit": v["unit"],
                                     "summary": v["summary"], "report_id": v["report_id"]})
 
+
+# ---------- F1-SEG: 사업부문별 증권사 컨센서스 (분기·연간) ----------
+# 규칙: (1) 부문 영업이익은 excl-AMPC 행만 (분리 불가 리포트는 제외, 억지 배분 금지)
+#       (2) 하우스당 그 기간에 대한 최신 리포트 1건만 (1하우스 1표)
+#       (3) 레벨 혼합 금지 — EV/ESS 분리 하우스와 중대형 합본 하우스는 각자 레벨에서만
+#       (4) 중앙값 기본 + 평균 병기 + n 필수
+SEG_LEVELS = ["소형", "EV", "ESS", "중대형", "전자재료", "배터리합계", "전사"]
+PERIODS_SEG = [(2025,"1Q"),(2025,"2Q"),(2025,"3Q"),(2025,"4Q"),
+               (2026,"1Q"),(2026,"2Q"),(2026,"3Q"),(2026,"4Q"),
+               (2026,"FY"),(2027,"FY")]
+
+def seg_consensus():
+    out = {}
+    for comp in COMPANIES:
+        cout = {}
+        for fy, period in PERIODS_SEG:
+            pout = {}
+            for seg in SEG_LEVELS:
+                sout = {}
+                for metric, basis_ok in [("매출", {"excl","na"}), ("영업이익", {"excl"}),
+                                          ("영업이익(incl)", {"incl"}), ("AMPC", {"na","excl","incl","incl_unknown"})]:
+                    m = "영업이익" if metric == "영업이익(incl)" else metric
+                    latest = {}
+                    for e in est:
+                        if (e["company"] != comp or e["segment_std"] != seg
+                                or e["fy"] != str(fy) or e["period"] != period
+                                or e["metric"] != m or e["value"] is None):
+                            continue
+                        if e["ampc_basis"] not in basis_ok:
+                            continue
+                        rm = rmeta.get(e["report_id"])
+                        if not rm or rm.get("report_type") != "기업":
+                            continue
+                        cur = latest.get(e["house"])
+                        if not cur or e["date"] > cur["date"]:
+                            latest[e["house"]] = {"house": e["house"], "date": e["date"],
+                                                  "value": e["value"], "basis": e["ampc_basis"],
+                                                  "report_id": e["report_id"], "page": e["source_page"]}
+                    if len(latest) >= 2:
+                        vals = [v["value"] for v in latest.values()]
+                        sout[metric] = {"median": round(st.median(vals), 1),
+                                        "mean": round(st.mean(vals), 1), "n": len(vals),
+                                        "houses": sorted(latest.values(), key=lambda x: x["value"])}
+                if sout:
+                    pout[seg] = sout
+            if pout:
+                cout[f"{fy}|{period}"] = pout
+        out[comp] = cout
+    return out
+
+f1["seg_consensus"] = seg_consensus()
+
+# ---------- F3: View 서술 병합 ----------
+import glob as _glob
+vn = {}
+for _p in _glob.glob(os.path.join(ROOT, ".staging", "viewnarr_*.json")):
+    try:
+        d = json.load(open(_p, encoding="utf-8"))
+        for it in d.get("items", []):
+            vn[f"{d['house']}|{it['company']}"] = it["narrative"]
+    except Exception:
+        pass
+f3_narr = vn
+
+# ---------- F7: 산업 View (산업리포트 전용) ----------
+ind_reports = [r for r in reports if r.get("report_type") == "산업"]
+ind_ids = {r["report_id"] for r in ind_reports}
+regimes, ind_meta = [], {}
+for _p in _glob.glob(os.path.join(ROOT, ".staging", "*.json")):
+    name = os.path.basename(_p)
+    if name.startswith(("actuals_", "viewnarr_", "manifest")):
+        continue
+    try:
+        d = json.load(open(_p, encoding="utf-8"))
+    except Exception:
+        continue
+    if d.get("report_id") in ind_ids:
+        ind_meta[d["report_id"]] = d
+        mr = d.get("market_regime") or {}
+        regimes.append({"report_id": d["report_id"], "date": d["date"], "house": d["house"],
+                        "phase": mr.get("phase"), "summary": mr.get("summary"),
+                        "sector_rating": d.get("sector_rating"),
+                        "top_picks": d.get("top_picks") or [],
+                        "title_summary": (d.get("body") or {}).get("summary", "")[:180]})
+regimes.sort(key=lambda x: x["date"])
+
+ind_views = []
+for v in iviews:
+    if v["report_id"] in ind_ids and v["direction"]:
+        ind_views.append({"house": v["house"], "date": v["date"], "scope": v["scope"],
+                          "fy": v["fy"], "metric": v["metric"], "value": v["value"],
+                          "unit": v["unit"], "direction": float(v["direction"]),
+                          "summary": v["summary"], "report_id": v["report_id"]})
+f7 = {"regimes": regimes, "views": ind_views,
+      "n_reports": len(ind_reports)}
+
 data = {"meta": {"built_from": "battery-reports index v2", "n_reports": len(reports),
                  "n_estimates": len(est), "houses": sorted({r['house'] for r in reports}),
                  "period": f"{min(r['date'] for r in reports)} ~ {max(r['date'] for r in reports)}",
                  "note_basis": "영업이익 비교는 AMPC 포함(incl) 기준 통일. excl만 있는 경우 AMPC 가산 파생(derived). LGES 매출은 1Q26부터 AMPC 병합 표시(IR 재작성 기준)."},
         "f1_quarterly": f1, "f2_stance": f2, "f3_views": f3,
-        "f4_accuracy": f4, "f5_outliers": f5, "f6_dotplots": f6}
+        "f3_narratives": f3_narr, "f4_accuracy": f4, "f5_outliers": f5, "f6_dotplots": f6, "f7_industry": f7}
 json.dump(data, open(f"{OUT}/data.json", "w", encoding="utf-8"), ensure_ascii=False)
 print(f"data.json 생성: {os.path.getsize(f'{OUT}/data.json')//1024}KB")
 print(f"f2 {len(f2)}셀 / f3 {len(f3)}시리즈 / f4 이벤트 {len(f4['events'])}+빈티지 {len(f4['fy2025_vintage'])}행"
