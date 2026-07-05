@@ -111,7 +111,7 @@ function axisY(g,x0,x1,y,v){g.append(sv("line",{x1:x0,x2:x1,y1:y,y2:y,stroke:"va
 /* ---------- 탭 ---------- */
 const TABS=[["overview","개요"],["f1","① 분기 실적"],["f2","② 스탠스 매트릭스"],["f3","③ View 변화"],
 ["f4","④ 적중률"],["f5","⑤ 아웃라이어"],["f6","⑥ 점도표"],["f7","⑦ 산업 View"]];
-let tab="overview", sel={f1:"LGES",f1p:null,f3:"LGES",f4:0,f6:"LGES",f6mode:"latest",f7s:null};
+let tab="overview", sel={f1:"LGES",f1c:"LGES",f1p:null,f1sr:"LGES",f1so:"LGES",f1srO:false,f1soO:false,f3:"LGES",f4:0,f6:"LGES",f6mode:"latest",f7s:null};
 function render(){
   $("#subline").textContent=`리포트 ${DATA.meta.n_reports}건 · ${DATA.meta.houses.length}개 증권사 · ${DATA.meta.period} · 추정치 ${DATA.meta.n_estimates.toLocaleString()}행`;
   const nav=$("#nav");nav.innerHTML="";
@@ -169,11 +169,8 @@ function lineChart(box,title,note,metric){
       fill:"none",stroke:CCOL[s.c],"stroke-width":2,"stroke-linejoin":"round"}));
     pts.forEach(p=>{const dot=sv("circle",{cx:X(p.i),cy:Y(p.v),r:4,fill:CCOL[s.c],stroke:"var(--surface)","stroke-width":2});
       const hit=sv("circle",{cx:X(p.i),cy:Y(p.v),r:12,fill:"transparent"});
-      hit.addEventListener("mousemove",e=>hover(e,`<b>${s.c}</b> ${p.label}<br>${metric} ${fmt(p.v)}원<br><i>클릭 → 부문별 분해</i>`+(s.c==="SK온"?"<br><i>SK이노 실적발표 기준(미보유 분기는 애널리스트 인용 중앙값)</i>":"")));
+      hit.addEventListener("mousemove",e=>hover(e,`<b>${s.c}</b> ${p.label}<br>${metric} ${fmt(p.v)}원`+(s.c==="SK온"?"<br><i>SK이노 실적발표 기준(미보유 분기는 애널리스트 인용 중앙값)</i>":"")));
       hit.addEventListener("mouseleave",unhover);
-      hit.style.cursor="pointer";
-      hit.addEventListener("click",()=>{sel.f1seg={comp:s.c,metric};render();
-        setTimeout(()=>$("#f1segcard")?.scrollIntoView({behavior:"smooth"}),50)});
       svg.append(dot,hit)});
     const last=pts[pts.length-1];
     let ly=Y(last.v)+4;
@@ -189,17 +186,22 @@ function lineChart(box,title,note,metric){
   d.append(tb);card.append(d);box.append(card);
 }
 function rF1(v){
-  lineChart(v,"분기 영업이익 (전사, AMPC 포함)","LGES·삼성SDI=회사 IR 확정치 / SK온 배터리=애널리스트 인용 중앙값 (SK이노 IR 미보유)","영업이익");
-  lineChart(v,"분기 매출 (전사, AMPC 제외 기준)","LGES는 재작성 전(AMPC 제외) 매출 사용 — 3사 비교 왜곡 방지","매출");
-  segBreakCard(v);
+  lineChart(v,"1) 분기 매출 (전사, AMPC 제외 기준)","LGES는 재작성 전(AMPC 제외) 매출 사용 — 3사 비교 왜곡 방지","매출");
+  segDetailCard(v,"매출","f1sr","f1srO","2) 사업부문별 분기 매출");
+  lineChart(v,"3) 분기 영업이익 (전사, AMPC 포함)","LGES·삼성SDI=회사 IR 확정치 / SK온 배터리=애널리스트 인용 중앙값","영업이익");
+  segDetailCard(v,"영업이익","f1so","f1soO","4) 사업부문별 분기 영업이익");
 
-  // 사업부문별 증권사 컨센서스
-  const segAll=DATA.f1_quarterly.seg_consensus?.[sel.f1]||{};
+  // 사업부문별 증권사 컨센서스 (회사 탭)
+  const segAll=DATA.f1_quarterly.seg_consensus?.[sel.f1c]||{};
   const segPeriods=Object.keys(segAll);
-  if(segPeriods.length){
-    if(!sel.f1p||!segAll[sel.f1p])sel.f1p=segPeriods.includes("2026|2Q")?"2026|2Q":segPeriods[segPeriods.length-1];
-    const sc=el("div",{class:"card"},`<h2>사업부문별 증권사 컨센서스 — ${sel.f1}</h2>
+  {
+    const sc=el("div",{class:"card"},`<h2>사업부문별 증권사 컨센서스</h2>
       <p class="note">중앙값(평균) 기준, 억원. 부문 영업이익은 <b>AMPC 제외(excl)</b>로 통일 — 분리 불가 리포트는 제외(n에서 빠짐). 하우스당 최신 리포트 1건. <b>셀 클릭 → 증권사별 추정치</b></p>`);
+    const cch=el("div",{class:"chips"});COMP.forEach(c=>{const b=el("button",{class:sel.f1c===c?"on":""},c);
+      b.onclick=()=>{sel.f1c=c;sel.f1p=null;render()};cch.append(b)});sc.append(cch);
+    if(!segPeriods.length){sc.append(el("p",{class:"note"},"이 회사는 부문별 컨센서스 데이터가 없습니다."));v.append(sc);}
+    else{
+    if(!sel.f1p||!segAll[sel.f1p])sel.f1p=segPeriods.includes("2026|2Q")?"2026|2Q":segPeriods[segPeriods.length-1];
     const pch=el("div",{class:"chips"});
     segPeriods.forEach(pp=>{const[fy,per]=pp.split("|");
       const b=el("button",{class:sel.f1p===pp?"on":""},per==="FY"?`FY${fy.slice(2)}`:`${fy.slice(2)}.${per}`);
@@ -217,7 +219,7 @@ function rF1(v){
         const td=el("td",{class:"num"+(c?" cell":"")},
           c?`<b>${fmt(c.median)}</b><br><span style="color:var(--muted);font-size:11px">평균 ${fmt(c.mean)} · n=${c.n}</span>`:"<span style='color:var(--muted)'>–</span>");
         if(c){td.onclick=()=>{const old=$("#f1side");old&&old.remove();
-          const sd=el("div",{id:"f1side"},`<h2 style="font-size:14px;margin:14px 0 4px">${sel.f1} · ${sel.f1p.replace("|"," ")} · ${g} · ${mk==="영업이익(incl)"?"영업이익(AMPC포함)":mk} — 증권사별</h2>`);
+          const sd=el("div",{id:"f1side"},`<h2 style="font-size:14px;margin:14px 0 4px">${sel.f1c} · ${sel.f1p.replace("|"," ")} · ${g} · ${mk==="영업이익(incl)"?"영업이익(AMPC포함)":mk} — 증권사별</h2>`);
           c.houses.slice().sort((a,b)=>b.value-a.value).forEach(h=>sd.append(el("div",{class:"side"},
             `<b>${h.house}</b> <span class="m">${h.date} · ${h.basis} · p.${h.page||"?"}</span>
              <span style="float:right;font-weight:700">${fmt(h.value)}원</span>`)));
@@ -226,6 +228,7 @@ function rF1(v){
         tr.append(td)});
       tb.append(tr)});
     sc.append(tb);v.append(sc);
+    }
   }
 
   const card=el("div",{class:"card"},`<h2>분기별 손익 변화의 원인 (경영층 브리핑)</h2><p class="note">회사 IR·콘퍼런스콜 발언과 리포트 근거 기반, 출처 표기</p>`);
@@ -250,13 +253,20 @@ function segSeries(comp,metric){
   });
   return {out,labels:Q.map(([fy,p])=>`${String(fy).slice(2)}.${p}`)};
 }
-function segBreakCard(v){
-  if(!sel.f1seg)return;
-  const {comp,metric}=sel.f1seg;
+function segDetailCard(v,metric,ckey,okey,title){
+  const card=el("div",{class:"card"});
+  const tg=el("button",{class:"chips-toggle",style:"border:1px solid var(--border);background:var(--chip);color:var(--ink2);padding:6px 14px;border-radius:14px;font:600 12.5px system-ui;cursor:pointer"},
+    (sel[okey]?"▾ ":"▸ ")+title+" (탭을 눌러 "+(sel[okey]?"접기":"펼치기")+")");
+  tg.onclick=()=>{sel[okey]=!sel[okey];render()};
+  card.append(tg);
+  if(!sel[okey]){v.append(card);return}
+  const comp=sel[ckey]||"LGES";
+  const cch=el("div",{class:"chips",style:"margin-top:12px"});
+  COMP.forEach(c=>{const b=el("button",{class:comp===c?"on":""},c);
+    b.onclick=()=>{sel[ckey]=c;render()};cch.append(b)});
+  card.append(cch);
+  card.append(el("p",{class:"note"},`${comp} — 부문별 ${metric} 컨센서스 추이 · `+(metric==="영업이익"?"AMPC 제외(excl) 중앙값 · 중대형은 EV+ESS 합산 파생 포함":"AMPC 제외 기준 중앙값")+` · 점 = 참여 증권사 중앙값(클릭 시 증권사별)`));
   const {out,labels}=segSeries(comp,metric);
-  const card=el("div",{class:"card",id:"f1segcard"},
-    `<h2>${comp} — 부문별 ${metric} 컨센서스 추이</h2>
-     <p class="note">부문 영업이익은 AMPC 제외(excl) 중앙값 · 중대형은 EV+ESS 합산 파생 포함 · 점 위 숫자 = 참여 증권사 수</p>`);
   if(!out.length){card.append(el("p",{class:"note"},"이 회사는 부문별 분기 컨센서스 데이터가 없습니다 (리포트가 부문 분해를 제공하지 않음)."));v.append(card);return}
   const W=700,H=260,L=70,R=90,T=14,B=28;
   const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
@@ -274,9 +284,9 @@ function segBreakCard(v){
       const hit=sv("circle",{cx:X(p.i),cy:Y(p.v),r:11,fill:"transparent"});
       hit.addEventListener("mousemove",e=>hover(e,`<b>${s2.g}</b> ${p.label}<br>${metric} 중앙값 ${fmt(p.v)}원 (n=${p.n})<br><i>클릭 → 증권사별</i>`));
       hit.addEventListener("mouseleave",unhover);hit.style.cursor="pointer";
-      hit.addEventListener("click",()=>{const old2=$("#f1segside");old2&&old2.remove();
+      hit.addEventListener("click",()=>{const old2=card.querySelector(".segside");old2&&old2.remove();
         if(!p.c)return;
-        const sd=el("div",{id:"f1segside"},`<h2 style="font-size:14px;margin:14px 0 4px">${comp} · ${p.label} · ${s2.g} · ${metric} — 증권사별</h2>`);
+        const sd=el("div",{class:"segside"},`<h2 style="font-size:14px;margin:14px 0 4px">${comp} · ${p.label} · ${s2.g} · ${metric} — 증권사별</h2>`);
         p.c.houses.slice().sort((a,b)=>b.value-a.value).forEach(h=>sd.append(el("div",{class:"side"},
           `<b>${h.house}</b> <span class="m">${h.date} · ${h.basis}</span><span style="float:right;font-weight:700">${fmt(h.value)}원</span>`)));
         card.append(sd)});
