@@ -58,7 +58,7 @@ def validate(r):
             warn(rid, f"unit 비표준: {e.get('unit')}")
     for s in r.get("stances", []):
         sc = s.get("stance_score")
-        if not isinstance(sc, (int, float)) or not -2 <= sc <= 2:
+        if not isinstance(sc, (int, float)) or not -10 <= sc <= 10:
             warn(rid, f"stance_score 범위 밖: {sc}")
 
 

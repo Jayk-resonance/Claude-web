@@ -22,10 +22,10 @@ estimates:
   - {company: LGES, segment: ESS, segment_std: ESS, fy: 2026, period: 2Q, metric: 매출, value: 2062, unit: 십억원, ampc_basis: excl, page: 3}
 
 # 이슈별 스탠스. stances.csv 로도 펼쳐진다.
-# stance_score: -2(매우부정) -1 0(중립) +1 +2(매우긍정)
+# stance_score: -10 ~ +10 (NORMALIZATION.md 6절 rubric 참조)
 stances:
-  - {issue: LFP,      company: LGES, stance_score: 1,  summary: "26년 하반기 양산 목표, 경쟁사 대비 1년 후행", page: 5}
-  - {issue: 북미CAPEX, company: LGES, stance_score: -1, summary: "IRA 불확실성으로 증설 속도 조절 가능성", page: 6}
+  - {issue: LFP,      company: LGES, stance_score: 5,  summary: "26년 하반기 양산 목표, 경쟁사 대비 1년 후행", page: 5}
+  - {issue: 북미CAPEX, company: LGES, stance_score: -4, summary: "IRA 불확실성으로 증설 속도 조절 가능성", page: 6}
 
 key_issues: [LFP, 북미CAPEX, 수율]        # 이 리포트가 다룬 이슈 태그
 # 산업 리포트/산업 전망 포함 시 (없으면 빈 리스트)

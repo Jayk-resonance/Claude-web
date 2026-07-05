@@ -213,7 +213,7 @@ for row in f2:
         if len(scores) >= 3:
             med = st.median(scores)
             outl = [i for i in row["items"] if i["date"] >= "2026-01-01"
-                    and abs(i["score"] - med) >= 2]
+                    and abs(i["score"] - med) >= 5]
             if outl:
                 f5["stance_outliers"].append({"issue": row["issue"], "company": row["company"],
                                               "median": med, "outliers": outl})

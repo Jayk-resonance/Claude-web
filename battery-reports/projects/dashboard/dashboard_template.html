@@ -100,8 +100,8 @@ function unhover(){tt.style.opacity=0}
 function tgTheme(){const r=document.documentElement,c=r.getAttribute("data-theme");
   r.setAttribute("data-theme",c==="dark"?"light":"dark");render()}
 function lin(v,d0,d1,r0,r1){return r0+(v-d0)/(d1-d0||1)*(r1-r0)}
-function divCol(s){ // -2..+2 diverging
-  if(s==null)return"var(--mid)";const t=Math.max(-2,Math.min(2,s))/2;
+function divCol(s){ // -10..+10 diverging
+  if(s==null)return"var(--mid)";const t=Math.max(-10,Math.min(10,s))/10;
   const a=Math.round(Math.abs(t)*78)+12;
   return t>0.05?`color-mix(in srgb, var(--pos) ${a}%, var(--mid))`
        : t<-0.05?`color-mix(in srgb, var(--neg) ${a}%, var(--mid))`:"var(--mid)"}
@@ -297,7 +297,7 @@ function segBreakCard(v){
 /* ---------- F2 스탠스 매트릭스 ---------- */
 function rF2(v){
   const card=el("div",{class:"card"},`<h2>이슈별 3사 스탠스 매트릭스</h2>
-    <p class="note">셀 = 2026년 리포트 스탠스 중앙값 (-2 매우부정 ~ +2 매우긍정) · 셀을 클릭하면 증권사별 근거 표시</p>`);
+    <p class="note">셀 = 2026년 리포트 스탠스 중앙값 (<b>-10 매우부정 ~ +10 매우긍정</b>, 크기=확신 강도) · 셀을 클릭하면 증권사별 근거 표시</p>`);
   const rows={};DATA.f2_stance.forEach(r=>{(rows[r.issue]??={}).c=(rows[r.issue].c||0)+r.n;(rows[r.issue])[r.company]=r});
   const issues=Object.keys(rows).sort((a,b)=>rows[b].c-rows[a].c).slice(0,14);
   const tb=el("table");tb.append(el("tr",{},`<th>이슈</th>${COMP.map(c=>`<th>${c}</th>`).join("")}`));
@@ -422,7 +422,7 @@ function rF5(v){
          <span style="font-size:12px">${h.summary||"(리포트 요약 없음)"}</span>`))});
     card.append(sec)});
   v.append(card);
-  const c2=el("div",{class:"card"},`<h2>스탠스 아웃라이어 — 소수 의견</h2><p class="note">2026년 스탠스가 이슈 중앙값과 ±2 이상 벌어진 콜. <b>항목 클릭 → 해당 소수 의견의 논거</b></p>`);
+  const c2=el("div",{class:"card"},`<h2>스탠스 아웃라이어 — 소수 의견</h2><p class="note">2026년 스탠스가 이슈 중앙값과 ±5 이상 벌어진 콜. <b>항목 클릭 → 해당 소수 의견의 논거</b></p>`);
   const chipsWrap=el("div",{class:"chips"});
   const detail=el("div");
   DATA.f5_outliers.stance_outliers.slice().sort((a,b)=>b.outliers.length-a.outliers.length).forEach(o=>{
