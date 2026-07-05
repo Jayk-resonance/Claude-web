@@ -201,9 +201,12 @@ for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리�
             med = st.median(vals)
             for v in latest.values():
                 v["dev_from_median"] = round(v["op"] - med, 1)
+            ranked = sorted(latest.values(), key=lambda x: -abs(x["dev_from_median"]))
+            for v in ranked[:2]:
+                v["summary"] = (rmeta.get(v["report_id"], {}).get("summary") or "")[:220]
             f5["estimate_outliers"].append(
                 {"company": comp, "fy": fy, "median": med, "n_houses": len(vals),
-                 "houses": sorted(latest.values(), key=lambda x: -abs(x["dev_from_median"]))})
+                 "houses": ranked})
 for row in f2:
     if row["n"] >= 3:
         scores = [i["score"] for i in row["items"] if i["date"] >= "2026-01-01"]
@@ -216,7 +219,8 @@ for row in f2:
                                               "median": med, "outliers": outl})
 
 # ---------- F6: 점도표 ----------
-f6 = {"op_dots": [], "industry_dots": []}
+F6_ACTUALS = {"LGES": {"2025": 1346.0}, "삼성SDI": {"2025": -1722.4}, "SK온": {"2025": -931.9}}
+f6 = {"op_dots": [], "industry_dots": [], "fy_actuals": F6_ACTUALS}
 for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리합계")]:
     dots = []
     for rid, rows in by_report.items():
@@ -249,6 +253,27 @@ PERIODS_SEG = [(2025,"1Q"),(2025,"2Q"),(2025,"3Q"),(2025,"4Q"),
                (2026,"FY"),(2027,"FY")]
 
 def seg_consensus():
+    # 롤업 파생: 하우스가 같은 리포트에서 EV+ESS(excl)를 모두 주면 중대형(derived) 후보
+    derived_mid = collections.defaultdict(dict)  # (comp,fy,period,metric) -> house -> row
+    tmp = collections.defaultdict(dict)
+    for e in est:
+        rm = rmeta.get(e["report_id"])
+        if not rm or rm.get("report_type") != "기업" or e["value"] is None:
+            continue
+        if e["segment_std"] in ("EV", "ESS") and e["metric"] in ("매출", "영업이익"):
+            basis_ok = e["ampc_basis"] == "excl" if e["metric"] == "영업이익" else e["ampc_basis"] in ("excl", "na")
+            if basis_ok:
+                tmp[(e["report_id"], e["company"], e["fy"], e["period"], e["metric"])][e["segment_std"]] = e
+    for (rid, comp, fy, period, metric), segs in tmp.items():
+        if "EV" in segs and "ESS" in segs:
+            rm = rmeta[rid]
+            cur = derived_mid.get((comp, fy, period, metric), {}).get(rm["house"])
+            if not cur or rm["date"] > cur["date"]:
+                derived_mid.setdefault((comp, fy, period, metric), {})[rm["house"]] = {
+                    "house": rm["house"], "date": rm["date"],
+                    "value": round(segs["EV"]["value"] + segs["ESS"]["value"], 1),
+                    "basis": "derived(EV+ESS)", "report_id": rid,
+                    "page": segs["EV"].get("source_page")}
     out = {}
     for comp in COMPANIES:
         cout = {}
@@ -275,6 +300,10 @@ def seg_consensus():
                             latest[e["house"]] = {"house": e["house"], "date": e["date"],
                                                   "value": e["value"], "basis": e["ampc_basis"],
                                                   "report_id": e["report_id"], "page": e["source_page"]}
+                    if seg == "중대형" and metric in ("매출", "영업이익"):
+                        for h, v in derived_mid.get((comp, str(fy), period, metric), {}).items():
+                            if h not in latest:
+                                latest[h] = v
                     if len(latest) >= 2:
                         vals = [v["value"] for v in latest.values()]
                         sout[metric] = {"median": round(st.median(vals), 1),
