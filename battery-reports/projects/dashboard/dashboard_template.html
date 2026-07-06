@@ -488,71 +488,151 @@ function rF6(v){ // 산업 점도표는 ⑦ 탭으로 이동
 
 }
 
-/* ---------- F7 산업 View ---------- */
+/* ---------- F7 산업 View (v3) ---------- */
 const PHASE={"낙관":{y:3,c:"var(--pos)"},"선별낙관":{y:2,c:"color-mix(in srgb,var(--pos) 55%,var(--mid))"},
  "중립":{y:1,c:"var(--muted)"},"비관":{y:0,c:"var(--neg)"}};
+function half(d){return d.slice(0,4)+(d.slice(5,7)<="06"?"H1":"H2")}
 function rF7(v){
-  const F=DATA.f7_industry||{regimes:[],views:[]};
-  // 1. 시장 국면 타임라인
-  const c1=el("div",{class:"card"},`<h2>시장 국면 타임라인 — 산업리포트 ${F.n_reports||F.regimes.length}건의 시각 변화</h2>
-    <p class="note">각 산업리포트의 시장 국면 판단 (비관 → 낙관). 점 위에 올리면 하우스·요지</p>`);
-  const rg=F.regimes.filter(r=>r.phase);
+  const F=DATA.f7_industry||{regimes:[],demand:[],themes:[]};
+  // ── 0. 시장 국면 타임라인 (유지, 접이식)
+  const rg=(F.regimes||[]).filter(r=>r.phase);
   if(rg.length){
-    const W=680,H=190,L=80,T=18,B=30;
+    const c0=el("div",{class:"card"},`<h2>시장 국면 타임라인</h2><p class="note">산업리포트 ${F.n_reports}건의 국면 판단 (비관→낙관)</p>`);
+    const W=680,H=170,L=80,T=16,B=28;
     const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
     const d0=new Date(rg[0].date).getTime(),d1=new Date(rg[rg.length-1].date).getTime();
     const X=t=>lin(t,d0,d1,L,W-24),Y=lv=>lin(lv,0,3,H-B,T);
     Object.entries(PHASE).forEach(([ph,o])=>{svg.append(sv("line",{x1:L,x2:W-24,y1:Y(o.y),y2:Y(o.y),stroke:"var(--grid)"}));
       const t=sv("text",{x:L-8,y:Y(o.y)+4,"text-anchor":"end",class:"lbl"});t.textContent=ph;svg.append(t)});
-    ["2023-07","2024-07","2025-07","2026-06"].forEach(m=>{const t2=new Date(m).getTime();
-      if(t2>=d0&&t2<=d1){const tx=sv("text",{x:X(t2),y:H-8,"text-anchor":"middle"});tx.textContent=m;svg.append(tx)}});
-    // 국면 이동 추세선(리포트 순 연결)
     svg.append(sv("polyline",{points:rg.map(r=>`${X(new Date(r.date).getTime())},${Y(PHASE[r.phase].y)}`).join(" "),
       fill:"none",stroke:"var(--axis)","stroke-width":1.5,"stroke-dasharray":"3 4"}));
     rg.forEach(r=>{const o=PHASE[r.phase];
       const dot=sv("circle",{cx:X(new Date(r.date).getTime()),cy:Y(o.y),r:7,fill:o.c,stroke:"var(--surface)","stroke-width":2});
-      dot.addEventListener("mousemove",e=>hover(e,`<b>${r.house}</b> ${r.date} · <b>${r.phase}</b>${r.sector_rating?` (${r.sector_rating})`:""}<br>${r.summary||""}${r.top_picks.length?`<br>Top picks: ${r.top_picks.join(", ")}`:""}`));
+      dot.addEventListener("mousemove",e=>hover(e,`<b>${r.house}</b> ${r.date} · <b>${r.phase}</b>${r.sector_rating?` (${r.sector_rating})`:""}<br>${r.summary||""}${(r.top_picks||[]).length?`<br>Top picks: ${r.top_picks.join(", ")}`:""}`));
       dot.addEventListener("mouseleave",unhover);svg.append(dot)});
-    c1.append(svg);
+    c0.append(svg);
+    const det=el("details",{},"<summary>리포트별 국면 판단 전체 보기</summary>");
+    rg.slice().reverse().forEach(r=>det.append(el("div",{class:"side"},
+      `<b>${r.house}</b> <span class="m">${r.date}</span> <span class="op ${r.phase.includes("낙관")?"buy":r.phase==="비관"?"sell":"hold"}">${r.phase}</span>
+       ${(r.top_picks||[]).length?`<span class="m"> · Top picks: ${r.top_picks.join(", ")}</span>`:""}<br>${r.summary||r.title_summary||""}`)));
+    c0.append(det);v.append(c0);
   }
-  rg.slice().reverse().forEach(r=>c1.append(el("div",{class:"side"},
-    `<b>${r.house}</b> <span class="m">${r.date}</span> <span class="op ${r.phase==="낙관"||r.phase==="선별낙관"?"buy":r.phase==="비관"?"sell":"hold"}">${r.phase}</span>
-     ${r.top_picks.length?`<span class="m"> · Top picks: ${r.top_picks.join(", ")}</span>`:""}<br>${r.summary||r.title_summary}`)));
-  v.append(c1);
-  // 2. 테마별 View 탐색
-  const byScope={};(F.views||[]).forEach(d=>{(byScope[d.scope]??=[]).push(d)});
-  const scopes=Object.entries(byScope).sort((a,b)=>b[1].length-a[1].length);
-  if(scopes.length){
-    const c2=el("div",{class:"card"},`<h2>테마별 View 탐색</h2>
-      <p class="note">테마 선택 → 시간에 따른 방향성(-2~+2)과 수치 전망. 점 = 리포트 1건의 판단</p>`);
-    if(!sel.f7s||!byScope[sel.f7s])sel.f7s=scopes[0][0];
-    const ch=el("div",{class:"chips"});
-    scopes.forEach(([sc,arr])=>{const b=el("button",{class:sel.f7s===sc?"on":""},`${sc} (${arr.length})`);
-      b.onclick=()=>{sel.f7s=sc;render()};ch.append(b)});
-    c2.append(ch);
-    const arr=byScope[sel.f7s].slice().sort((a,b)=>a.date.localeCompare(b.date));
-    const W=680,H=200,L=64,T=16,B=30;
-    const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
-    const d0=new Date(arr[0].date).getTime(),d1=new Date(arr[arr.length-1].date).getTime()+864e5;
-    const X=t=>lin(t,d0,d1,L,W-24),Y=dr=>lin(dr,-2.4,2.4,H-B,T);
-    [-2,-1,0,1,2].forEach(g=>{svg.append(sv("line",{x1:L,x2:W-24,y1:Y(g),y2:Y(g),stroke:g===0?"var(--axis)":"var(--grid)"}));
-      const t=sv("text",{x:L-8,y:Y(g)+4,"text-anchor":"end"});t.textContent=g>0?"+"+g:g;svg.append(t)});
-    arr.forEach(d=>{const col=d.direction>0?"var(--pos)":d.direction<0?"var(--neg)":"var(--muted)";
-      const dot=sv("circle",{cx:X(new Date(d.date).getTime()),cy:Y(d.direction),r:6,fill:col,"fill-opacity":.85,stroke:"var(--surface)","stroke-width":1.5});
-      dot.addEventListener("mousemove",e=>hover(e,`<b>${d.house}</b> ${d.date}<br>방향 ${d.direction>0?"+":""}${d.direction}${d.value?` · ${Number(d.value).toLocaleString()}${d.unit||""}${d.fy?` (${d.fy})`:""}`:""}<br>${d.summary||""}`));
-      dot.addEventListener("mouseleave",unhover);svg.append(dot)});
-    c2.append(svg);
-    const nums=arr.filter(d=>d.value);
-    if(nums.length){
-      const tb=el("table");
-      tb.append(el("tr",{},"<th>발간일</th><th>증권사</th><th>대상연도</th><th style='text-align:right'>전망치</th><th>내용</th>"));
-      nums.forEach(d=>tb.append(el("tr",{},`<td>${d.date}</td><td><b>${d.house}</b></td><td>${d.fy||"–"}</td>
-        <td class="num">${Number(d.value).toLocaleString()}${d.unit||""}</td><td style="font-size:12px;color:var(--ink2)">${(d.summary||"").slice(0,90)}</td>`)));
-      const det=el("details",{},`<summary>수치 전망 ${nums.length}건 표로 보기</summary>`);det.append(tb);c2.append(det);
+  // ── A. 지역별 수요 전망 + 리비전 트래커
+  const D=F.demand||[];
+  if(D.length){
+    const c1=el("div",{class:"card"},`<h2>지역별 시장 수요 전망 — 증권사 View 비교</h2>
+      <p class="note">지역·용도 선택 → 각 선 = 리포트 1건의 전망 곡선 (진할수록 최근 발간). 발간년도 필터로 시점별 비교</p>`);
+    const regions=[...new Set(D.map(d=>d.region))].filter(r=>["글로벌","북미","유럽","중국","한국"].includes(r));
+    sel.f7r??= regions.includes("북미")?"북미":regions[0];
+    sel.f7a??="ESS"; sel.f7m??="수요량"; sel.f7y??="전체"; sel.f7mode??="curve";
+    const mk=(items,key,fmtfn)=>{const ch=el("div",{class:"chips"});
+      items.forEach(it=>{const b=el("button",{class:sel[key]===it?"on":""},fmtfn?fmtfn(it):it);
+        b.onclick=()=>{sel[key]=it;render()};ch.append(b)});return ch};
+    c1.append(mk(regions,"f7r"));
+    c1.append(mk(["EV","ESS","합계"].filter(a=>D.some(d=>d.region===sel.f7r&&d.application===a)),"f7a"));
+    const mets=[...new Set(D.filter(d=>d.region===sel.f7r&&d.application===sel.f7a).map(d=>d.metric))];
+    if(!mets.includes(sel.f7m))sel.f7m=mets.includes("수요량")?"수요량":mets[0];
+    c1.append(mk(mets,"f7m"));
+    const pubYears=["전체",...new Set(D.map(d=>d.date.slice(0,4)))].sort();
+    c1.append(mk(pubYears,"f7y",y=>y==="전체"?"발간: 전체":"발간 "+y));
+    c1.append(mk(["curve","revision"],"f7mode",m=>m==="curve"?"연도별 전망 곡선":"리비전 추적(대상연도 고정)"));
+    let rows=D.filter(d=>d.region===sel.f7r&&d.application===sel.f7a&&d.metric===sel.f7m&&d.fy);
+    if(sel.f7y!=="전체")rows=rows.filter(d=>d.date.slice(0,4)===sel.f7y);
+    const unit=rows[0]?.unit||"";
+    if(!rows.length){c1.append(el("p",{class:"note"},"이 조합의 데이터가 없습니다."));v.append(c1)}
+    else if(sel.f7mode==="curve"){
+      const W=700,H=280,L=70,R=30,T=16,B=30;
+      const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
+      const fys=rows.map(r=>r.fy),vs=rows.map(r=>r.value);
+      const x0=Math.min(...fys),x1=Math.max(...fys);
+      let lo=0,hi=Math.max(...vs)*1.08;
+      const X=fy=>lin(fy,x0,x1,L,W-R),Y=val=>lin(val,lo,hi,H-B,T);
+      [0,.5,1].forEach(f=>{const gv=Math.round(hi*f);axisY(svg,L,W-R,Y(gv),gv.toLocaleString())});
+      for(let fy=x0;fy<=x1;fy++){if((fy-x0)%Math.ceil((x1-x0)/8||1)===0){const t=sv("text",{x:X(fy),y:H-8,"text-anchor":"middle"});t.textContent=fy;svg.append(t)}}
+      const byRep={};rows.forEach(r=>{(byRep[r.report_id]??=[]).push(r)});
+      Object.values(byRep).forEach(arr=>{arr.sort((a,b)=>a.fy-b.fy);
+        const age=arr[0].date>="2026-01-01"?1:arr[0].date>="2025-01-01"?.6:.35;
+        svg.append(sv("polyline",{points:arr.map(r=>`${X(r.fy)},${Y(r.value)}`).join(" "),
+          fill:"none",stroke:"var(--accent)","stroke-width":2,"stroke-opacity":age*.75}));
+        arr.forEach(r=>{const dot=sv("circle",{cx:X(r.fy),cy:Y(r.value),r:4.5,fill:"var(--accent)","fill-opacity":age,stroke:"var(--surface)","stroke-width":1.5});
+          dot.addEventListener("mousemove",e=>hover(e,`<b>${r.house}</b> ${r.date} 발간<br>${sel.f7r} ${sel.f7a} ${r.fy}년 ${sel.f7m}<br><b>${r.value.toLocaleString()}${r.unit}</b>${r.metric==="실적치"?" (실적)":""}${r.basis?`<br><i>${r.basis}</i>`:""}`));
+          dot.addEventListener("mouseleave",unhover);svg.append(dot)})});
+      c1.append(svg,el("p",{class:"note"},`단위: ${unit} · 선 ${Object.keys(byRep).length}개 리포트`));
+      const det=el("details",{},"<summary>표로 보기</summary>");const tb=el("table");
+      tb.append(el("tr",{},"<th>발간일</th><th>증권사</th><th>대상연도</th><th style='text-align:right'>값</th><th>기준</th>"));
+      rows.slice().sort((a,b)=>b.date.localeCompare(a.date)||a.fy-b.fy).forEach(r=>
+        tb.append(el("tr",{},`<td>${r.date}</td><td><b>${r.house}</b></td><td>${r.fy}</td><td class="num">${r.value.toLocaleString()}${r.unit}</td><td style="font-size:11.5px;color:var(--muted)">${r.metric==="실적치"?"실적":""} ${r.basis||""}</td>`)));
+      det.append(tb);c1.append(det);v.append(c1);
+    }else{ // revision 모드
+      const tf=[...new Set(rows.map(r=>r.fy))].sort();
+      sel.f7fy??= tf.includes(2030)?2030:tf[tf.length-1];
+      if(!tf.includes(sel.f7fy))sel.f7fy=tf[tf.length-1];
+      c1.append(mk(tf,"f7fy",y=>"대상 "+y+"년"));
+      const rr=rows.filter(r=>r.fy===sel.f7fy).sort((a,b)=>a.date.localeCompare(b.date));
+      const W=700,H=260,L=70,R=30,T=16,B=30;
+      const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
+      const d0=new Date(rr[0].date).getTime(),d1=new Date(rr[rr.length-1].date).getTime()+864e5;
+      let hi=Math.max(...rr.map(r=>r.value))*1.08;
+      const X=t=>lin(t,d0,d1,L,W-R),Y=val=>lin(val,0,hi,H-B,T);
+      [0,.5,1].forEach(f=>{const gv=Math.round(hi*f);axisY(svg,L,W-R,Y(gv),gv.toLocaleString())});
+      [...new Set(rr.map(r=>r.date.slice(0,7)))].filter((m,i,a)=>i%Math.ceil(a.length/6||1)===0).forEach(m=>{
+        const t=sv("text",{x:X(new Date(m).getTime()),y:H-8,"text-anchor":"middle"});t.textContent=m;svg.append(t)});
+      const byH={};rr.forEach(r=>{(byH[r.house]??=[]).push(r)});
+      Object.values(byH).forEach(arr=>{if(arr.length>1)
+        svg.append(sv("polyline",{points:arr.map(r=>`${X(new Date(r.date).getTime())},${Y(r.value)}`).join(" "),
+          fill:"none",stroke:"var(--accent)","stroke-width":1.5,"stroke-opacity":.4}))});
+      rr.forEach(r=>{const dot=sv("circle",{cx:X(new Date(r.date).getTime()),cy:Y(r.value),r:5.5,fill:"var(--accent)",stroke:"var(--surface)","stroke-width":1.5});
+        dot.addEventListener("mousemove",e=>hover(e,`<b>${r.house}</b> ${r.date} 발간<br>${sel.f7fy}년 ${sel.f7r} ${sel.f7a} 전망 <b>${r.value.toLocaleString()}${r.unit}</b>${r.value_prev?`<br>직전 전망 ${r.value_prev.toLocaleString()}${r.unit}`:""}`));
+        dot.addEventListener("mouseleave",unhover);svg.append(dot)});
+      c1.append(svg,el("p",{class:"note"},`읽는 법: 같은 대상연도(${sel.f7fy})에 대한 전망이 발간 시점에 따라 어떻게 수정됐는지. 우상향=시장 눈높이 상향.`));
+      v.append(c1);
     }
-    v.append(c2);
+  }
+  // ── C. 테마 로테이션 맵
+  const TH=F.themes||[];
+  if(TH.length){
+    const c2=el("div",{class:"card"},`<h2>테마 로테이션 맵</h2>
+      <p class="note">반기 × 테마 — 색 = 평균 방향(-10 부정 ~ +10 긍정), 숫자 = 언급 리포트 수. 셀 클릭 → 요지</p>`);
+    const halves=[...new Set(TH.map(t=>half(t.date)))].sort();
+    const themes=[...new Set(TH.map(t=>t.theme))];
+    const agg={};TH.forEach(t=>{const k=t.theme+"|"+half(t.date);(agg[k]??=[]).push(t)});
+    const score=th=>{const arr=TH.filter(t=>t.theme===th&&t.date>="2025-07-01");return arr.length};
+    themes.sort((a,b)=>score(b)-score(a));
+    const tb=el("table");
+    tb.append(el("tr",{},`<th>테마</th>${halves.map(h=>`<th style="text-align:center">${h.slice(2)}</th>`).join("")}`));
+    const detail=el("div");
+    themes.forEach(th=>{const tr=el("tr");tr.append(el("td",{},`<b>${th}</b>`));
+      halves.forEach(h=>{const arr=agg[th+"|"+h];
+        const avg=arr?arr.reduce((s2,t)=>s2+t.direction,0)/arr.length:null;
+        const td=el("td",{class:arr?"cell":"",style:`background:${arr?divCol(avg):"transparent"};text-align:center;font-weight:600`},
+          arr?`${avg>0?"+":""}${avg.toFixed(0)}<span style="font-weight:400;color:var(--muted)"><br>${arr.length}건</span>`:"·");
+        if(arr){td.onclick=()=>{detail.innerHTML=`<p class="note" style="margin-top:6px"><b>${th} · ${h}</b></p>`;
+          arr.forEach(t=>detail.append(el("div",{class:"side"},`<b>${t.house}</b> <span class="m">${t.date} · ${t.direction>0?"+":""}${t.direction}</span><br>${t.summary||""}`)))}}
+        tr.append(td)});
+      tb.append(tr)});
+    c2.append(tb,detail);v.append(c2);
+    // ── D. 강세/약세 논거 대전
+    const c3=el("div",{class:"card"},`<h2>강세 vs 약세 논거 대전</h2>
+      <p class="note">테마 선택 → 산업리포트들이 제시한 강세 논거(좌)와 약세 논거(우) 대치</p>`);
+    const thAvail=themes.filter(th=>TH.some(t=>t.theme===th&&(t.bull||t.bear)));
+    sel.f7t??= thAvail[0];
+    if(!thAvail.includes(sel.f7t))sel.f7t=thAvail[0];
+    const ch=el("div",{class:"chips"});
+    thAvail.forEach(th=>{const b=el("button",{class:sel.f7t===th?"on":""},th);
+      b.onclick=()=>{sel.f7t=th;render()};ch.append(b)});
+    c3.append(ch);
+    const sel2=TH.filter(t=>t.theme===sel.f7t).sort((a,b)=>b.date.localeCompare(a.date));
+    const grid=el("div",{style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"});
+    const colB=el("div",{},`<p style="font:700 12.5px system-ui;color:var(--pos);margin:0 0 6px">▲ 강세 논거</p>`);
+    const colR=el("div",{},`<p style="font:700 12.5px system-ui;color:var(--neg);margin:0 0 6px">▼ 약세 논거</p>`);
+    sel2.filter(t=>t.bull).forEach(t=>colB.append(el("div",{class:"side",style:"border-left-color:var(--pos)"},
+      `<b>${t.house}</b> <span class="m">${t.date}</span><br>${t.bull}`)));
+    sel2.filter(t=>t.bear).forEach(t=>colR.append(el("div",{class:"side",style:"border-left-color:var(--neg)"},
+      `<b>${t.house}</b> <span class="m">${t.date}</span><br>${t.bear}`)));
+    if(!colB.children.length)colB.append(el("p",{class:"note"},"강세 논거 없음"));
+    if(!colR.children.length)colR.append(el("p",{class:"note"},"약세 논거 없음"));
+    grid.append(colB,colR);c3.append(grid);v.append(c3);
   }
 }
-
 render();
 </script>

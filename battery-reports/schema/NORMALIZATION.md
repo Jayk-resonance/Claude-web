@@ -89,3 +89,21 @@
 - **탐지**: `tools/check_duplicates.py` — 같은 (하우스, 커버리지) + 발간일 2일 이내를 후보로 플래그. 신규 인제스트 전 `--new-only`로 실행.
 - **판정**: 후보의 제목·첫 페이지를 대조해 내용 동일 여부 확인 (언어만 다르면 중복).
 - **처리**: 삭제하지 않는다 — 한국어판 1건만 유지, 나머지는 `archive/duplicates/`로 이동(git mv)하고 manifest 항목에 `duplicate_of: <유지한 report_id>` 기록. `build_indexes.py`가 해당 항목을 인덱스·MD에서 자동 제외한다.
+
+## 8. 산업리포트 스키마 v3 (2026-07)
+
+산업리포트는 `schema_version: 3`부터 industry_views를 용도별 테이블 2개로 분리한다.
+
+### demand_forecasts (정량 수요 전망 — 지역별 수요 View·리비전 트래커의 원천)
+`{region, application, metric, fy, value, value_prev, unit, basis, page}`
+- region: 글로벌|북미|유럽|중국|한국|기타 / application: EV|ESS|합계 (결합 문자열 금지)
+- metric: 수요량(GWh)|판매대수(천대·만대)|성장률(%)|침투율(%)|실적치(발표된 과거 실측)
+- **표에 있는 모든 연도를 수집한다** (2023~2035, 중간연도 생략 금지)
+- value_prev: 리포트가 '기존 전망 대비' 변경을 명시한 경우의 직전 전망치
+
+### themes (정성 방향성 — 테마 로테이션 맵·논거 대전의 원천)
+`{theme(6절 통제어휘), direction(-10~+10, 6절 rubric), bull, bear, summary, page}`
+- bull/bear: 그 테마의 강세/약세 논거 각 1~2문장 (한쪽만 있으면 다른 쪽 null)
+
+인덱스: demand_forecasts.csv, themes.csv 신설. 기존 인덱스 무변경(하위호환).
+기업 리포트의 industry_views(명시적 산업 전망)는 기존대로 industry_views.csv에 유지.

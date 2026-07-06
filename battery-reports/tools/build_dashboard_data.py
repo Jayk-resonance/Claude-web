@@ -357,14 +357,29 @@ for _p in _glob.glob(os.path.join(ROOT, ".staging", "*.json")):
                         "title_summary": (d.get("body") or {}).get("summary", "")[:180]})
 regimes.sort(key=lambda x: x["date"])
 
-ind_views = []
-for v in iviews:
-    if v["report_id"] in ind_ids and v["direction"]:
-        ind_views.append({"house": v["house"], "date": v["date"], "scope": v["scope"],
-                          "fy": v["fy"], "metric": v["metric"], "value": v["value"],
-                          "unit": v["unit"], "direction": float(v["direction"]),
-                          "summary": v["summary"], "report_id": v["report_id"]})
-f7 = {"regimes": regimes, "views": ind_views,
+# v3: demand_forecasts / themes 인덱스에서 로드 (없으면 빈 리스트)
+def _load(name):
+    fp = f"{IDX}/{name}"
+    return list(csv.DictReader(open(fp, encoding="utf-8"))) if os.path.exists(fp) else []
+
+demand_rows = []
+for d in _load("demand_forecasts.csv"):
+    if d["value"] in ("", None):
+        continue
+    demand_rows.append({"house": d["house"], "date": d["date"], "region": d["region"],
+                        "application": d["application"], "metric": d["metric"],
+                        "fy": int(d["fy"]) if d["fy"] else None, "value": float(d["value"]),
+                        "value_prev": float(d["value_prev"]) if d["value_prev"] else None,
+                        "unit": d["unit"], "basis": d["basis"], "report_id": d["report_id"]})
+theme_rows = []
+for t in _load("themes.csv"):
+    if not t["direction"]:
+        continue
+    theme_rows.append({"house": t["house"], "date": t["date"], "theme": t["theme"],
+                       "direction": float(t["direction"]), "bull": t["bull"] or None,
+                       "bear": t["bear"] or None, "summary": t["summary"],
+                       "report_id": t["report_id"]})
+f7 = {"regimes": regimes, "demand": demand_rows, "themes": theme_rows,
       "n_reports": len(ind_reports)}
 
 data = {"meta": {"built_from": "battery-reports index v2", "n_reports": len(reports),

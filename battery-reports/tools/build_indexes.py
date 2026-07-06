@@ -60,6 +60,15 @@ def validate(r):
         sc = s.get("stance_score")
         if not isinstance(sc, (int, float)) or not -10 <= sc <= 10:
             warn(rid, f"stance_score 범위 밖: {sc}")
+    for t in r.get("themes", []) or []:
+        d = t.get("direction")
+        if not isinstance(d, (int, float)) or not -10 <= d <= 10:
+            warn(rid, f"theme direction 범위 밖: {d} ({t.get('theme')})")
+    for df in r.get("demand_forecasts", []) or []:
+        if df.get("region") not in ("글로벌", "북미", "유럽", "중국", "한국", "기타"):
+            warn(rid, f"demand region 비표준: {df.get('region')}")
+        if df.get("application") not in ("EV", "ESS", "합계"):
+            warn(rid, f"demand application 비표준: {df.get('application')}")
 
 
 def yflow(items, keys):
@@ -92,6 +101,17 @@ def render_md(r):
     fm.append("stances:")
     fm.append(yflow(r.get("stances", []),
                     ["issue", "company", "stance_score", "summary", "page"]))
+    if r.get("schema_version"):
+        fm.append(f"schema_version: {r['schema_version']}")
+    if r.get("demand_forecasts"):
+        fm.append("demand_forecasts:")
+        fm.append(yflow(r["demand_forecasts"],
+                        ["region", "application", "metric", "fy", "value",
+                         "value_prev", "unit", "basis", "page"]))
+    if r.get("themes"):
+        fm.append("themes:")
+        fm.append(yflow(r["themes"],
+                        ["theme", "direction", "bull", "bear", "summary", "page"]))
     if r.get("industry_views"):
         fm.append("industry_views:")
         fm.append(yflow(r["industry_views"],
@@ -212,6 +232,27 @@ def main(check_only=False):
                             v.get("fy"), v.get("metric"), v.get("value"),
                             v.get("unit"), v.get("direction"),
                             v.get("summary"), v.get("page")])
+
+    # --- demand_forecasts.csv / themes.csv (산업 v3) ---
+    with open(os.path.join(idx, "demand_forecasts.csv"), "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["report_id", "date", "house", "region", "application", "metric",
+                    "fy", "value", "value_prev", "unit", "basis", "source_page"])
+        for r in sorted(reports, key=lambda x: x["date"]):
+            for d in r.get("demand_forecasts", []) or []:
+                w.writerow([r["report_id"], r["date"], r["house"], d.get("region"),
+                            d.get("application"), d.get("metric"), d.get("fy"),
+                            d.get("value"), d.get("value_prev"), d.get("unit"),
+                            d.get("basis"), d.get("page")])
+    with open(os.path.join(idx, "themes.csv"), "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["report_id", "date", "house", "theme", "direction",
+                    "bull", "bear", "summary", "source_page"])
+        for r in sorted(reports, key=lambda x: x["date"]):
+            for t in r.get("themes", []) or []:
+                w.writerow([r["report_id"], r["date"], r["house"], t.get("theme"),
+                            t.get("direction"), t.get("bull"), t.get("bear"),
+                            t.get("summary"), t.get("page")])
 
     # --- actuals.csv + drivers.csv ---
     with open(os.path.join(idx, "actuals.csv"), "w", encoding="utf-8", newline="") as f:
