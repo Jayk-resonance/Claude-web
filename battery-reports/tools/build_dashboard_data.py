@@ -346,6 +346,49 @@ for v in iviews:
                                     "summary": v["summary"], "report_id": v["report_id"]})
 
 
+# ---------- F1: 전사 분기 컨센서스 (미발표 분기 점선 연장용, v10) ----------
+# 영업이익 = 분기별 점도표(하우스별 최신)의 중앙값과 동일 계산.
+# 매출 = 하우스별 최신 리포트의 매출 중앙값 (LGES는 excl 우선, incl-AMPC 파생 폴백).
+est_quarters = {}
+for comp, seg in [("LGES", "전사"), ("삼성SDI", "전사"), ("SK온", "배터리합계")]:
+    grp = next(g for g in f6["op_dots_q"] if g["company"] == comp)
+    per_comp = {}
+    for q in _QS:
+        if q in q_act.get(comp, {}):
+            continue  # 실적 있는 분기는 제외
+        seen = {}
+        for d in sorted(grp["dots"], key=lambda x: x["report_date"], reverse=True):
+            if d["q"] == q and d["house"] not in seen:
+                seen[d["house"]] = d["op"]
+        rev_seen = {}
+        for rid, rows in by_report.items():
+            rm = rmeta.get(rid)
+            if not rm or rm["coverage"] != comp or rm["date"] < "2026-03-01":
+                continue
+            sel_r = [r for r in rows if r["company"] == comp and r["segment_std"] == seg
+                     and r["fy"] == str(QFY) and r["period"] == q and r["value"] is not None]
+            rv = {r["ampc_basis"]: r["value"] for r in sel_r if r["metric"] == "매출"}
+            ampc = next((r["value"] for r in sel_r if r["metric"] == "AMPC"), None)
+            v = rv.get("excl")
+            if v is None and comp == "LGES" and "incl" in rv and ampc is not None:
+                v = rv["incl"] - ampc
+            if v is None:
+                v = rv.get("na", rv.get("incl", rv.get("incl_unknown")))
+            if v is not None:
+                cur = rev_seen.get(rm["house"])
+                if not cur or rm["date"] > cur[0]:
+                    rev_seen[rm["house"]] = (rm["date"], v)
+        entry = {}
+        if seen:
+            entry["영업이익"] = round(st.median(seen.values()), 1)
+            entry["영업이익_n"] = len(seen)
+        if rev_seen:
+            entry["매출"] = round(st.median(v for _, v in rev_seen.values()), 1)
+            entry["매출_n"] = len(rev_seen)
+        if entry:
+            per_comp[f"{QFY}|{q}"] = entry
+    est_quarters[comp] = per_comp
+
 # ---------- F1-SEG: 사업부문별 증권사 컨센서스 (분기·연간) ----------
 # 규칙: (1) 부문 영업이익은 excl-AMPC 행만 (분리 불가 리포트는 제외, 억지 배분 금지)
 #       (2) 하우스당 그 기간에 대한 최신 리포트 1건만 (1하우스 1표)
@@ -421,6 +464,7 @@ def seg_consensus():
     return out
 
 f1["seg_consensus"] = seg_consensus()
+f1["est_quarters"] = est_quarters
 
 # ---------- F3: View 서술 병합 ----------
 import glob as _glob
