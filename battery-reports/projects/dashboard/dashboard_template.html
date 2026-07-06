@@ -259,11 +259,12 @@ function rF1(v){
 }
 
 
-const SEGCOL={"EV":"var(--lges)","ESS":"#1baf7a","소형":"#eda100","전자재료":"#e87ba4",
+const SEGCOL={"EV":"var(--lges)","ESS":"#1baf7a","소형":"#eda100","전자재료":"#e87ba4","중대형":"#4a3aa7",
   "AMPC(EV)":"#6c5fc7","AMPC(ESS)":"#a99ee8","AMPC":"#8d84c9","합계":"var(--ink2)"};
 function segSeries(comp,metric){
   const Q=[[2025,"1Q"],[2025,"2Q"],[2025,"3Q"],[2025,"4Q"],[2026,"1Q"],[2026,"2Q"],[2026,"3Q"],[2026,"4Q"]];
-  const segs=["EV","ESS","소형","전자재료"]; // 중대형(EV+ESS 합산)은 제외
+  // 중대형(EV+ESS 합산)은 기본 제외 — 단, 삼성SDI 영업이익은 EV/ESS 분해 공시가 적어 중대형을 표시
+  const segs=(comp==="삼성SDI"&&metric==="영업이익")?["EV","ESS","중대형","소형","전자재료"]:["EV","ESS","소형","전자재료"];
   const sc=DATA.f1_quarterly.seg_consensus?.[comp]||{};
   const out=[];
   const mkpts=(g,mk)=>Q.map(([fy,p],i)=>{const c=sc[`${fy}|${p}`]?.[g]?.[mk];
