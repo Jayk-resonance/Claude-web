@@ -366,11 +366,17 @@ demand_rows = []
 for d in _load("demand_forecasts.csv"):
     if d["value"] in ("", None):
         continue
+    # 대시보드는 수요량·침투율만 사용 (성장률/실적치/판매대수 등은 CSV에 유지, 표시 제외)
+    if d["metric"] not in ("수요량", "침투율"):
+        continue
     demand_rows.append({"house": d["house"], "date": d["date"], "region": d["region"],
                         "application": d["application"], "metric": d["metric"],
                         "fy": int(d["fy"]) if d["fy"] else None, "value": float(d["value"]),
                         "value_prev": float(d["value_prev"]) if d["value_prev"] else None,
-                        "unit": d["unit"], "basis": d["basis"], "report_id": d["report_id"]})
+                        "unit": d["unit"], "basis": d["basis"], "report_id": d["report_id"],
+                        "cls": d.get("series_class") or "시장전체",
+                        "sk": d["report_id"] + "|" + (d.get("series_label") or d["basis"] or ""),
+                        "scope": d.get("scope_note") or None})
 theme_rows = []
 for t in _load("themes.csv"):
     if not t["direction"]:

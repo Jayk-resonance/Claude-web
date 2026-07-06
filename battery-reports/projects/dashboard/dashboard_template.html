@@ -521,10 +521,11 @@ function rF7(v){
   const D=F.demand||[];
   if(D.length){
     const c1=el("div",{class:"card"},`<h2>지역별 시장 수요 전망 — 증권사 View 비교</h2>
-      <p class="note">지역·용도 선택 → 각 선 = 리포트 1건의 전망 곡선 (진할수록 최근 발간). 발간년도 필터로 시점별 비교</p>`);
+      <p class="note">각 선 = 리포트 1건의 전망 시리즈 (진할수록 최근 발간). 기본 화면은 <b>시장 전체의 연간 전망만</b> 표시 —
+      기준이 달라 비교가 안 되는 서브세그먼트(4680·소듐이온·주택용 등)·시나리오·월간치·CAPA·참고치는 토글로 분리.</p>`);
     const regions=[...new Set(D.map(d=>d.region))].filter(r=>["글로벌","북미","유럽","중국","한국"].includes(r));
     sel.f7r??= regions.includes("북미")?"북미":regions[0];
-    sel.f7a??="ESS"; sel.f7m??="수요량"; sel.f7y??="전체"; sel.f7mode??="curve";
+    sel.f7a??="ESS"; sel.f7m??="수요량"; sel.f7y??="전체"; sel.f7mode??="curve"; sel.f7all??=false;
     const mk=(items,key,fmtfn)=>{const ch=el("div",{class:"chips"});
       items.forEach(it=>{const b=el("button",{class:sel[key]===it?"on":""},fmtfn?fmtfn(it):it);
         b.onclick=()=>{sel[key]=it;render()};ch.append(b)});return ch};
@@ -536,7 +537,12 @@ function rF7(v){
     const pubYears=["전체",...new Set(D.map(d=>d.date.slice(0,4)))].sort();
     c1.append(mk(pubYears,"f7y",y=>y==="전체"?"발간: 전체":"발간 "+y));
     c1.append(mk(["curve","revision"],"f7mode",m=>m==="curve"?"연도별 전망 곡선":"리비전 추적(대상연도 고정)"));
-    let rows0=D.filter(d=>d.region===sel.f7r&&d.application===sel.f7a&&d.metric===sel.f7m&&d.fy);
+    const combo=D.filter(d=>d.region===sel.f7r&&d.application===sel.f7a&&d.metric===sel.f7m&&d.fy);
+    const nSub=new Set(combo.filter(d=>d.cls!=="시장전체").map(d=>d.sk)).size;
+    if(nSub&&sel.f7mode==="curve"){const tg=el("div",{class:"chips"});
+      const tb=el("button",{class:sel.f7all?"on":""},`세부·시나리오 시리즈 포함 (${nSub})`);
+      tb.onclick=()=>{sel.f7all=!sel.f7all;render()};tg.append(tb);c1.append(tg)}
+    let rows0=sel.f7all&&sel.f7mode==="curve"?combo:combo.filter(d=>d.cls==="시장전체");
     const units=[...new Set(rows0.map(d=>d.unit))].filter(Boolean)
       .sort((a,b)=>rows0.filter(d=>d.unit===b).length-rows0.filter(d=>d.unit===a).length);
     if(!units.includes(sel.f7u))sel.f7u=units.includes("GWh")?"GWh":units[0];
@@ -554,34 +560,43 @@ function rF7(v){
       const X=fy=>lin(fy,x0,x1,L,W-R),Y=val=>lin(val,lo,hi,H-B,T);
       [0,.5,1].forEach(f=>{const gv=Math.round(hi*f);axisY(svg,L,W-R,Y(gv),gv.toLocaleString()+(f===1?unit:""))});
       for(let fy=x0;fy<=x1;fy++){if((fy-x0)%Math.ceil((x1-x0)/8||1)===0){const t=sv("text",{x:X(fy),y:H-8,"text-anchor":"middle"});t.textContent=fy;svg.append(t)}}
-      const byRep={};rows.forEach(r=>{(byRep[r.report_id]??=[]).push(r)});
+      const byRep={};rows.forEach(r=>{(byRep[r.sk]??=[]).push(r)});
       Object.values(byRep).forEach(arr=>{arr.sort((a,b)=>a.fy-b.fy);
+        const mkt=arr[0].cls==="시장전체";
         const age=arr[0].date>="2026-01-01"?1:arr[0].date>="2025-01-01"?.6:.35;
         svg.append(sv("polyline",{points:arr.map(r=>`${X(r.fy)},${Y(r.value)}`).join(" "),
-          fill:"none",stroke:"var(--accent)","stroke-width":2,"stroke-opacity":age*.75}));
-        arr.forEach(r=>{const dot=sv("circle",{cx:X(r.fy),cy:Y(r.value),r:4.5,fill:"var(--accent)","fill-opacity":age,stroke:"var(--surface)","stroke-width":1.5});
-          dot.addEventListener("mousemove",e=>hover(e,`<b>${r.house}</b> ${r.date} 발간<br>${sel.f7r} ${sel.f7a} ${r.fy}년 ${sel.f7m}<br><b>${r.value.toLocaleString()}${r.unit}</b>${r.metric==="실적치"?" (실적)":""}${r.basis?`<br><i>${r.basis}</i>`:""}`));
+          fill:"none",stroke:mkt?"var(--accent)":"var(--muted)","stroke-width":mkt?2:1.4,
+          "stroke-opacity":age*(mkt?.75:.5),
+          ...(arr[0].scope?{"stroke-dasharray":"7 4"}:mkt?{}:{"stroke-dasharray":"3 3"})}));
+        arr.forEach(r=>{const dot=sv("circle",{cx:X(r.fy),cy:Y(r.value),r:mkt?4.5:3.5,fill:mkt?"var(--accent)":"var(--muted)","fill-opacity":age,stroke:"var(--surface)","stroke-width":1.5});
+          dot.addEventListener("mousemove",e=>hover(e,`<b>${r.house}</b> ${r.date} 발간${r.cls!=="시장전체"?` · <span style="color:var(--muted)">[${r.cls}]</span>`:""}${r.scope?` · ${r.scope}`:""}<br>${sel.f7r} ${sel.f7a} ${r.fy}년 ${sel.f7m}<br><b>${r.value.toLocaleString()}${r.unit}</b>${r.basis?`<br><i>${r.basis}</i>`:""}`));
           dot.addEventListener("mouseleave",unhover);svg.append(dot)})});
-      c1.append(svg,el("p",{class:"note"},`단위: ${unit} · 선 ${Object.keys(byRep).length}개 리포트`));
+      c1.append(svg,el("p",{class:"note"},`단위: ${unit} · 시리즈 ${Object.keys(byRep).length}개 (리포트 ${new Set(rows.map(r=>r.report_id)).size}건)${sel.f7all?"":nSub?` · 기준 상이 시리즈 ${nSub}개 숨김`:""}${rows.some(r=>r.scope)?" · 긴 점선 = 집계범위 상이(중국 제외 등)":""}`));
       const det=el("details",{},"<summary>표로 보기</summary>");const tb=el("table");
-      tb.append(el("tr",{},"<th>발간일</th><th>증권사</th><th>대상연도</th><th style='text-align:right'>값</th><th>기준</th>"));
+      tb.append(el("tr",{},"<th>발간일</th><th>증권사</th><th>구분</th><th>대상연도</th><th style='text-align:right'>값</th><th>기준</th>"));
       rows.slice().sort((a,b)=>b.date.localeCompare(a.date)||a.fy-b.fy).forEach(r=>
-        tb.append(el("tr",{},`<td>${r.date}</td><td><b>${r.house}</b></td><td>${r.fy}</td><td class="num">${r.value.toLocaleString()}${r.unit}</td><td style="font-size:11.5px;color:var(--muted)">${r.metric==="실적치"?"실적":""} ${r.basis||""}</td>`)));
+        tb.append(el("tr",{},`<td>${r.date}</td><td><b>${r.house}</b></td><td style="font-size:11.5px">${r.cls}${r.scope?" · "+r.scope:""}</td><td>${r.fy}</td><td class="num">${r.value.toLocaleString()}${r.unit}</td><td style="font-size:11.5px;color:var(--muted)">${r.basis||""}</td>`)));
       det.append(tb);c1.append(det);v.append(c1);
-    }else{ // revision 모드
-      const tf=[...new Set(rows.map(r=>r.fy))].sort();
+    }else{ // revision 모드 — 비교 왜곡 방지 위해 시장전체 시리즈만 사용
+      const rv=rows.filter(r=>r.cls==="시장전체");
+      if(!rv.length){c1.append(el("p",{class:"note"},"이 조합의 시장 전체 전망 데이터가 없습니다."));v.append(c1)}
+      else{
+      const tf=[...new Set(rv.map(r=>r.fy))].sort();
       sel.f7fy??= tf.includes(2030)?2030:tf[tf.length-1];
       if(!tf.includes(sel.f7fy))sel.f7fy=tf[tf.length-1];
       c1.append(mk(tf,"f7fy",y=>"대상 "+y+"년"));
-      const rr=rows.filter(r=>r.fy===sel.f7fy).sort((a,b)=>a.date.localeCompare(b.date));
+      const rr=rv.filter(r=>r.fy===sel.f7fy).sort((a,b)=>a.date.localeCompare(b.date));
       const W=700,H=260,L=70,R=30,T=16,B=30;
       const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
       const d0=new Date(rr[0].date).getTime(),d1=new Date(rr[rr.length-1].date).getTime()+864e5;
       let hi=Math.max(...rr.map(r=>r.value))*1.08;
       const X=t=>lin(t,d0,d1,L,W-R),Y=val=>lin(val,0,hi,H-B,T);
       [0,.5,1].forEach(f=>{const gv=Math.round(hi*f);axisY(svg,L,W-R,Y(gv),gv.toLocaleString())});
-      [...new Set(rr.map(r=>r.date.slice(0,7)))].filter((m,i,a)=>i%Math.ceil(a.length/6||1)===0).forEach(m=>{
-        const t=sv("text",{x:X(new Date(m).getTime()),y:H-8,"text-anchor":"middle"});t.textContent=m;svg.append(t)});
+      let lastTx=-1e9;
+      [...new Set(rr.map(r=>r.date.slice(0,7)))].forEach(m=>{
+        const tx=X(new Date(m).getTime());
+        if(tx-lastTx<72)return; lastTx=tx;
+        const t=sv("text",{x:tx,y:H-8,"text-anchor":"middle"});t.textContent=m;svg.append(t)});
       const byH={};rr.forEach(r=>{(byH[r.house]??=[]).push(r)});
       Object.values(byH).forEach(arr=>{if(arr.length>1)
         svg.append(sv("polyline",{points:arr.map(r=>`${X(new Date(r.date).getTime())},${Y(r.value)}`).join(" "),
@@ -589,8 +604,9 @@ function rF7(v){
       rr.forEach(r=>{const dot=sv("circle",{cx:X(new Date(r.date).getTime()),cy:Y(r.value),r:5.5,fill:"var(--accent)",stroke:"var(--surface)","stroke-width":1.5});
         dot.addEventListener("mousemove",e=>hover(e,`<b>${r.house}</b> ${r.date} 발간<br>${sel.f7fy}년 ${sel.f7r} ${sel.f7a} 전망 <b>${r.value.toLocaleString()}${r.unit}</b>${r.value_prev?`<br>직전 전망 ${r.value_prev.toLocaleString()}${r.unit}`:""}`));
         dot.addEventListener("mouseleave",unhover);svg.append(dot)});
-      c1.append(svg,el("p",{class:"note"},`읽는 법: 같은 대상연도(${sel.f7fy})에 대한 전망이 발간 시점에 따라 어떻게 수정됐는지. 우상향=시장 눈높이 상향.`));
+      c1.append(svg,el("p",{class:"note"},`읽는 법: 같은 대상연도(${sel.f7fy})에 대한 전망이 발간 시점에 따라 어떻게 수정됐는지. 우상향=시장 눈높이 상향. (시장 전체 시리즈만 사용)`));
       v.append(c1);
+      }
     }
   }
   // ── C. 테마 로테이션 맵

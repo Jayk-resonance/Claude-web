@@ -249,16 +249,22 @@ def main(check_only=False):
                             v.get("summary"), v.get("page")])
 
     # --- demand_forecasts.csv / themes.csv (산업 v3) ---
+    # series_class/series_label/scope_note: 비교가능성 큐레이션 (demand_curation.py, v8)
+    from demand_curation import classify
     with open(os.path.join(idx, "demand_forecasts.csv"), "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["report_id", "date", "house", "region", "application", "metric",
-                    "fy", "value", "value_prev", "unit", "basis", "source_page"])
+                    "fy", "value", "value_prev", "unit", "basis", "source_page",
+                    "series_class", "series_label", "scope_note"])
         for r in sorted(reports, key=lambda x: x["date"]):
             for d in r.get("demand_forecasts", []) or []:
+                c = classify(r["report_id"], d.get("region"), d.get("application"),
+                             d.get("metric"), d.get("unit"), d.get("basis"))
                 w.writerow([r["report_id"], r["date"], r["house"], d.get("region"),
                             d.get("application"), d.get("metric"), d.get("fy"),
                             d.get("value"), d.get("value_prev"), d.get("unit"),
-                            d.get("basis"), d.get("page")])
+                            d.get("basis"), d.get("page"),
+                            c["cls"], c["label"], c["scope"]])
     with open(os.path.join(idx, "themes.csv"), "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["report_id", "date", "house", "theme", "direction",
