@@ -299,59 +299,60 @@ function segDetailCard(v,metric,ckey,okey,title){
   COMP.forEach(c=>{const b=el("button",{class:comp===c?"on":""},c);
     b.onclick=()=>{sel[ckey]=c;render()};cch.append(b)});
   card.append(cch);
-  card.append(el("p",{class:"note"},`${comp} — 부문별 ${metric} 컨센서스 추이 · `+(metric==="영업이익"?"AMPC 제외(excl) 중앙값":"AMPC 제외 기준 중앙값")+` · 점 = 참여 증권사 중앙값(클릭 시 증권사별) · 실선 = 실적 구간, 점선 = 전망(26.2Q~, 속 빈 점) · <b>합계는 우측 보조축</b>(회색)`+(metric==="영업이익"?` · AMPC는 가는 보라 계열 별도 시리즈`+(comp==="LGES"?"(EV/ESS 분해)":""):"")));
+  card.append(el("p",{class:"note"},`${comp} — 부문별 ${metric} 컨센서스 추이 · `+(metric==="영업이익"?"AMPC 제외(excl) 중앙값":"AMPC 제외 기준 중앙값")+` · 점 = 참여 증권사 중앙값(클릭 시 증권사별) · 실선 = 실적 구간, 점선 = 전망(26.2Q~, 속 빈 점) · <b>합계는 차트 상단 숫자 행</b>`+(metric==="영업이익"?` · AMPC는 가는 보라 계열 별도 시리즈`+(comp==="LGES"?"(EV/ESS 분해)":""):"")));
   const {out,labels}=segSeries(comp,metric);
   if(!out.length){card.append(el("p",{class:"note"},"이 회사는 부문별 분기 컨센서스 데이터가 없습니다 (리포트가 부문 분해를 제공하지 않음)."));v.append(card);return}
-  const W=700,H=260,L=70,R=142,T=14,B=28;
-  const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
-  let prim=out.filter(s2=>!s2.total),tot=out.find(s2=>s2.total);
-  if(!prim.length&&tot){prim=[tot];tot=null} // 부문 분해가 없는 회사(SK온)는 합계를 주축으로
-  if(prim.length&&prim.every(s2=>s2.ampc)&&!tot)
+  const prim=out.filter(s2=>!s2.total),tot=out.find(s2=>s2.total);
+  if(prim.length&&prim.every(s2=>s2.ampc))
     card.append(el("p",{class:"note"},"※ 이 회사는 부문 분해와 AMPC 제외 영업이익 공시가 없어 AMPC 추정만 표시됩니다 — 전사(배터리) 영업이익은 3) 분기 영업이익 차트 참조."));
+  const W=700,H=278,L=70,R=142,T=32,B=28;
+  const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
+  const X=i=>lin(i,0,labels.length-1,L,W-R);
+  // 합계(전사/배터리합계)는 스케일이 커서 선 대신 상단 숫자 행으로
+  if(tot){
+    const hl=sv("text",{x:4,y:14,"text-anchor":"start",class:"lbl"});hl.setAttribute("fill","var(--ink2)");hl.textContent=`합계`;svg.append(hl);
+    tot.pts.forEach(p=>{if(p.v==null)return;
+      const t=sv("text",{x:X(p.i),y:14,"text-anchor":"middle",class:"lbl",style:"font-weight:700"});
+      t.setAttribute("fill",p.i>=5?"var(--muted)":"var(--ink2)");t.textContent=fmtA(p.v);
+      t.addEventListener("mousemove",e=>hover(e,`<b>합계(${tot.seg})</b> ${p.label}${p.i>=5?" <i>(전망)</i>":""}<br>${metric} 중앙값 ${fmt(p.v)}원 (n=${p.n})`));
+      t.addEventListener("mouseleave",unhover);svg.append(t)});
+    svg.append(sv("line",{x1:L-4,x2:W-R+4,y1:22,y2:22,stroke:"var(--grid)"}));
+  }
+  if(!prim.length){card.append(svg);v.append(card);return}
   const all=prim.flatMap(s2=>s2.pts.map(p=>p.v)).filter(x=>x!=null);
   let lo=Math.min(...all,0),hi=Math.max(...all,0);const pad=(hi-lo)*.1||1;lo-=pad;hi+=pad;
-  const X=i=>lin(i,0,labels.length-1,L,W-R),Y=x=>lin(x,lo,hi,H-B,T);
+  const Y=x=>lin(x,lo,hi,H-B,T);
   [lo,0,hi].filter((x,i,a)=>a.indexOf(x)===i).forEach(g=>axisY(svg,L,W-R,Y(g),fmtA(g)));
-  let Y2=null;
-  if(tot){
-    const tv=tot.pts.map(p=>p.v).filter(x=>x!=null);
-    let lo2=Math.min(...tv,0),hi2=Math.max(...tv,0);const pad2=(hi2-lo2)*.1||1;
-    if(Math.min(...tv)<0)lo2-=pad2;hi2+=pad2;
-    Y2=x=>lin(x,lo2,hi2,H-B,T);
-    [["우축 "+fmtA(hi2),Y2(hi2)+9],["우축 "+fmtA(lo2),Y2(lo2)-3]].forEach(([txt,y])=>{
-      const t=sv("text",{x:W-4,y,class:"lbl","text-anchor":"end"});t.setAttribute("fill","var(--muted)");t.textContent=txt;svg.append(t)});
-  }
   labels.forEach((lb,i)=>{const t=sv("text",{x:X(i),y:H-8,"text-anchor":"middle"});t.textContent=lb;svg.append(t)});
   const labs=[];
-  [...prim,...(tot?[tot]:[])].forEach(s2=>{
+  prim.forEach(s2=>{
     const col=SEGCOL[s2.g]||"var(--muted)";
-    const YY=s2.total&&Y2?Y2:Y;
     const pts=s2.pts.filter(p=>p.v!=null);
     const mname=s2.ampc?"AMPC":metric;
     const thin=s2.ampc?1.5:2;
     // 실적 구간(~26.1Q, i<=4) 실선 / 전망 구간(26.2Q~, i>=4 커넥터부터) 점선
     const seg1=pts.filter(p=>p.i<=4),seg2=pts.filter(p=>p.i>=4);
-    if(seg1.length>1)svg.append(sv("polyline",{points:seg1.map(p=>`${X(p.i)},${YY(p.v)}`).join(" "),fill:"none",stroke:col,"stroke-width":thin,"stroke-linejoin":"round"}));
-    if(seg2.length>1)svg.append(sv("polyline",{points:seg2.map(p=>`${X(p.i)},${YY(p.v)}`).join(" "),fill:"none",stroke:col,"stroke-width":thin,"stroke-dasharray":"5 4","stroke-linejoin":"round"}));
+    if(seg1.length>1)svg.append(sv("polyline",{points:seg1.map(p=>`${X(p.i)},${Y(p.v)}`).join(" "),fill:"none",stroke:col,"stroke-width":thin,"stroke-linejoin":"round"}));
+    if(seg2.length>1)svg.append(sv("polyline",{points:seg2.map(p=>`${X(p.i)},${Y(p.v)}`).join(" "),fill:"none",stroke:col,"stroke-width":thin,"stroke-dasharray":"5 4","stroke-linejoin":"round"}));
     pts.forEach(p=>{const dot=p.i>=5
-        ?sv("circle",{cx:X(p.i),cy:YY(p.v),r:s2.ampc?3:4,fill:"var(--surface)",stroke:col,"stroke-width":2})
-        :sv("circle",{cx:X(p.i),cy:YY(p.v),r:s2.ampc?3:4,fill:col,stroke:"var(--surface)","stroke-width":2});
-      const hit=sv("circle",{cx:X(p.i),cy:YY(p.v),r:11,fill:"transparent"});
-      hit.addEventListener("mousemove",e=>hover(e,`<b>${s2.g}${s2.total?`(${s2.seg})`:""}</b> ${p.label}${p.i>=5?" <i>(전망)</i>":""}<br>${mname} 중앙값 ${fmt(p.v)}원 (n=${p.n})${s2.total?"<br><i>우측 보조축</i>":""}<br><i>클릭 → 증권사별</i>`));
+        ?sv("circle",{cx:X(p.i),cy:Y(p.v),r:s2.ampc?3:4,fill:"var(--surface)",stroke:col,"stroke-width":2})
+        :sv("circle",{cx:X(p.i),cy:Y(p.v),r:s2.ampc?3:4,fill:col,stroke:"var(--surface)","stroke-width":2});
+      const hit=sv("circle",{cx:X(p.i),cy:Y(p.v),r:11,fill:"transparent"});
+      hit.addEventListener("mousemove",e=>hover(e,`<b>${s2.g}</b> ${p.label}${p.i>=5?" <i>(전망)</i>":""}<br>${mname} 중앙값 ${fmt(p.v)}원 (n=${p.n})<br><i>클릭 → 증권사별</i>`));
       hit.addEventListener("mouseleave",unhover);hit.style.cursor="pointer";
       hit.addEventListener("click",()=>{const old2=card.querySelector(".segside");old2&&old2.remove();
         if(!p.c)return;
-        const sd=el("div",{class:"segside"},`<h2 style="font-size:14px;margin:14px 0 4px">${comp} · ${p.label} · ${s2.g}${s2.total?`(${s2.seg})`:""} · ${mname} — 증권사별</h2>`);
+        const sd=el("div",{class:"segside"},`<h2 style="font-size:14px;margin:14px 0 4px">${comp} · ${p.label} · ${s2.g} · ${mname} — 증권사별</h2>`);
         p.c.houses.slice().sort((a,b)=>b.value-a.value).forEach(h=>sd.append(el("div",{class:"side"},
           `<b>${h.house}</b> <span class="m">${h.date} · ${h.basis}</span><span style="float:right;font-weight:700">${fmt(h.value)}원</span>`)));
         card.append(sd)});
       svg.append(dot,hit)});
     const last=pts[pts.length-1];
-    labs.push({s2,last,col,y:YY(last.v)+4,YY});
+    labs.push({s2,last,col,y:Y(last.v)+4});
   });
   layoutEndLabels(labs,13);
-  labs.forEach(({s2,last,col,y,YY})=>{
-    if(Math.abs(y-4-YY(last.v))>6)svg.append(sv("line",{x1:X(last.i)+3,y1:YY(last.v),x2:X(last.i)+7,y2:y-4,stroke:col,"stroke-width":1,"stroke-opacity":.5}));
+  labs.forEach(({s2,last,col,y})=>{
+    if(Math.abs(y-4-Y(last.v))>6)svg.append(sv("line",{x1:X(last.i)+3,y1:Y(last.v),x2:X(last.i)+7,y2:y-4,stroke:col,"stroke-width":1,"stroke-opacity":.5}));
     const t=sv("text",{x:X(last.i)+8,y,class:"lbl"});t.setAttribute("fill",col);t.textContent=`${s2.g} ${fmtA(last.v)}`;svg.append(t)});
   card.append(svg);
   // 표 뷰
