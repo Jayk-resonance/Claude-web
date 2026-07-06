@@ -82,3 +82,10 @@
 이슈 태그: LFP, 46파이, ESS, 북미CAPEX, 수율, AMPC, 파우치, 전고체, 밸류에이션, 소형전지, 유럽EV, 북미EV, 중국경쟁, 관세, 로봇, 배터리판매량. (신규 필요 시 추가하되 유사어 통합)
 
 산업 리포트는 `industry_views`: {scope(글로벌EV수요/북미ESS/유럽EV/중국경쟁/메탈가격/K배터리 등), fy, metric, value, unit, direction(-2~+2), summary, page} + `top_picks`.
+
+## 7. 중복 리포트 처리
+
+동일 내용의 언어판(영/한) 등 중복 리포트는 이중 집계를 유발하므로 인제스트 전에 걸러낸다.
+- **탐지**: `tools/check_duplicates.py` — 같은 (하우스, 커버리지) + 발간일 2일 이내를 후보로 플래그. 신규 인제스트 전 `--new-only`로 실행.
+- **판정**: 후보의 제목·첫 페이지를 대조해 내용 동일 여부 확인 (언어만 다르면 중복).
+- **처리**: 삭제하지 않는다 — 한국어판 1건만 유지, 나머지는 `archive/duplicates/`로 이동(git mv)하고 manifest 항목에 `duplicate_of: <유지한 report_id>` 기록. `build_indexes.py`가 해당 항목을 인덱스·MD에서 자동 제외한다.

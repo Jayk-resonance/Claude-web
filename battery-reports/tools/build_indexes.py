@@ -132,6 +132,11 @@ def main(check_only=False):
 
     # manifest 대조: 누락 파일
     mf = json.load(open(os.path.join(STAGING, "manifest.json"), encoding="utf-8"))
+    dup_ids = {m["report_id"] for m in mf if m.get("duplicate_of")}
+    if dup_ids:
+        reports = [r for r in reports if r["report_id"] not in dup_ids]
+        print(f"중복 표시(duplicate_of) 제외: {len(dup_ids)}건")
+    mf = [m for m in mf if not m.get("duplicate_of")]
     have = {r.get("report_id") for r in reports}
     missing = [m["report_id"] for m in mf if m["report_id"] not in have]
     for m in missing:
