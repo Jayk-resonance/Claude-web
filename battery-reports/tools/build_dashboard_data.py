@@ -35,6 +35,44 @@ narratives = json.load(open(CUR, encoding="utf-8")) if os.path.exists(CUR) else 
 for e in est:
     e["value"] = float(e["value"]) if e["value"] else None
 
+# 실적 확정 기간의 영업이익 ampc_basis 자동 교정 (v9).
+# 리포트가 표기한 basis(incl_unknown/na 포함)와 무관하게, 숫자가 실적의
+# incl/excl 어느 쪽과 일치하는지로 바로잡는다 — 점도표·적중률 오염 방지.
+# 새 실적이 확정되면 여기에 한 줄 추가한다.
+KNOWN_OP_BASIS = {
+    ("LGES", "2025", "FY"): {"incl": 1346.0, "excl": -301.0},       # AMPC 1,647
+    ("삼성SDI", "2025", "FY"): {"incl": -1722.4, "excl": -1998.0},   # AMPC 275
+    ("LGES", "2026", "1Q"): {"incl": -207.8, "excl": -397.6},       # AMPC 190
+    ("삼성SDI", "2026", "1Q"): {"incl": -155.6},                     # 분기 AMPC 실적 미공시 → excl 대조 불가
+    ("SK온", "2026", "1Q"): {"incl": -349.2},
+}
+_TOL = 2.0  # 십억원
+# 해당 기간의 실적 발표일 — 이후 발간 리포트의 불일치 값은 기준 검증 불가로 점도표 제외
+KNOWN_ANNOUNCE = {("LGES", "2025", "FY"): "2026-02-01", ("삼성SDI", "2025", "FY"): "2026-02-01",
+                  ("LGES", "2026", "1Q"): "2026-04-08", ("삼성SDI", "2026", "1Q"): "2026-04-28",
+                  ("SK온", "2026", "1Q"): "2026-05-13"}
+
+
+def known_mismatch(comp, fy, period, rdate, op):
+    """실적 발표 후 리포트인데 incl 실적과 불일치 → 기준 불명(예: 미공시 AMPC 차감치)."""
+    k = KNOWN_OP_BASIS.get((comp, str(fy), period))
+    ad = KNOWN_ANNOUNCE.get((comp, str(fy), period))
+    return (k and ad and rdate >= ad and "incl" in k
+            and abs(op - k["incl"]) > _TOL)
+
+
+for e in est:
+    if e["metric"] != "영업이익" or e["value"] is None \
+       or e["segment_std"] not in ("전사", "배터리합계"):
+        continue
+    k = KNOWN_OP_BASIS.get((e["company"], e["fy"], e["period"]))
+    if not k:
+        continue
+    if "incl" in k and abs(e["value"] - k["incl"]) <= _TOL:
+        e["ampc_basis"] = "incl"
+    elif "excl" in k and abs(e["value"] - k["excl"]) <= _TOL:
+        e["ampc_basis"] = "excl"
+
 
 def op_incl(rows_one_report, company, seg, fy, period):
     """한 리포트 내에서 AMPC 포함 영업이익 도출 (기준 통일)."""
@@ -164,8 +202,18 @@ for (comp, fy, period), adate in ANNOUNCE.items():
         if rev is not None and act.get("매출") is not None:
             e["rev_err_pct"] = round((rev - act["매출"]) / act["매출"] * 100, 1)
         preds.append(e)
+    # 이벤트 결론: 프리뷰 컨센서스(중앙값) 대비 실제가 얼마나 벗어났나
+    ops = [p["op_est"] for p in preds if p["op_est"] is not None]
+    med = round(st.median(ops), 1) if ops else None
+    verdict = diff = None
+    if med is not None and act.get("영업이익") is not None:
+        diff = round(act["영업이익"] - med, 1)
+        thr = max(abs(med) * 0.15, 30)  # 중앙값의 15% 또는 300억원 중 큰 쪽
+        verdict = ("어닝 서프라이즈" if diff > thr
+                   else "어닝 쇼크" if diff < -thr else "컨센서스 부합")
     f4["events"].append({"company": comp, "fy": fy, "period": period,
-                         "announce_date": adate, "actual": act, "preds": preds})
+                         "announce_date": adate, "actual": act, "preds": preds,
+                         "consensus_median": med, "diff": diff, "verdict": verdict})
 
 # FY2025 빈티지 적중률 (2023~25년 리포트의 FY2025 전망 vs 실제)
 ACT_FY25 = {"LGES": {"매출": 23672, "영업이익": 1346}, "삼성SDI": {"매출": 13267, "영업이익": -1722}}
@@ -186,15 +234,27 @@ for rid, rows in by_report.items():
 f4["fy2025_vintage"] = sorted(vint, key=lambda x: x["date"])
 
 # ---------- F5: 아웃라이어 ----------
+# 대상 기간 자동 롤링: (1) 최신 실적 발표 분기의 다음 분기 (2) 분석년도.
+# 분석년도는 3Q 실적 발표 전까지는 당해, 발표 후에는 다음 해.
+_QS = ["1Q", "2Q", "3Q", "4Q"]
+_last_fy, _last_q = sorted(((fy, q) for (_c, fy, q) in ANNOUNCE),
+                           key=lambda k: (k[0], _QS.index(k[1])))[-1]
+if _last_q == "4Q":
+    _nq_fy, _nq = _last_fy + 1, "1Q"
+else:
+    _nq_fy, _nq = _last_fy, _QS[_QS.index(_last_q) + 1]
+_ana_fy = _last_fy if _QS.index(_last_q) < 2 else _last_fy + 1
+F5_TARGETS = [(_nq_fy, _nq), (_ana_fy, "FY")]
+
 f5 = {"estimate_outliers": [], "stance_outliers": []}
 for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리합계")]:
-    for fy in [2026, 2027]:
+    for fy, period in F5_TARGETS:
         latest = {}
         for rid, rows in by_report.items():
             rm = rmeta.get(rid)
             if not rm or rm["coverage"] != comp or rm["date"] < "2026-03-01":
                 continue
-            op, basis = op_incl(rows, comp, seg, fy, "FY")
+            op, basis = op_incl(rows, comp, seg, fy, period)
             if op is None or basis in ("excl_only",):
                 continue
             cur = latest.get(rm["house"])
@@ -207,11 +267,22 @@ for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리�
             for v in latest.values():
                 v["dev_from_median"] = round(v["op"] - med, 1)
             ranked = sorted(latest.values(), key=lambda x: -abs(x["dev_from_median"]))
-            for v in ranked[:2]:
+            # 하이라이트 3곳: 최비관·최낙관 필수 + 나머지 중 최대 이탈
+            lo_h = min(latest.values(), key=lambda x: x["op"])
+            hi_h = max(latest.values(), key=lambda x: x["op"])
+            lo_h["tag"] = "최비관"; hi_h["tag"] = "최낙관"
+            picks, seen = [], set()
+            for h in [lo_h, hi_h] + ranked:
+                if h["house"] not in seen:
+                    picks.append(h); seen.add(h["house"])
+                if len(picks) == 3:
+                    break
+            for v in picks:
                 v["summary"] = (rmeta.get(v["report_id"], {}).get("summary") or "")[:220]
+                v["pick"] = True
             f5["estimate_outliers"].append(
-                {"company": comp, "fy": fy, "median": med, "n_houses": len(vals),
-                 "houses": ranked})
+                {"company": comp, "fy": fy, "period": period, "median": med,
+                 "n_houses": len(vals), "houses": ranked})
 for row in f2:
     if row["n"] >= 3:
         scores = [i["score"] for i in row["items"] if i["date"] >= "2026-01-01"]
@@ -234,10 +305,38 @@ for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리�
             continue
         for fy in [2025, 2026, 2027, 2028]:
             op, basis = op_incl(rows, comp, seg, fy, "FY")
-            if op is not None:
+            # excl_only/na는 AMPC 포함으로 환산 불가 → 점도표 제외 (기준 오염 방지)
+            if op is not None and basis not in ("excl_only", "na") \
+               and not known_mismatch(comp, fy, "FY", rm["date"], op):
                 dots.append({"house": rm["house"], "report_date": rm["date"],
                              "fy": fy, "op": op, "basis": basis, "report_id": rid})
     f6["op_dots"].append({"company": comp, "segment": seg, "dots": dots})
+
+# 2026년 분기별 점도표 (+ 발표된 분기의 실적선)
+QFY = 2026
+q_act = {}
+for a in actuals:
+    seg_t = "배터리합계" if a["company"] == "SK온" else "전사"
+    if (a["company"] in COMPANIES and a["fy"] == str(QFY) and a["period"] in _QS
+            and a["metric"] == "영업이익" and a["segment_std"] == seg_t):
+        q_act.setdefault(a["company"], {})[a["period"]] = float(a["value"])
+f6["q_fy"] = QFY
+f6["q_actuals"] = q_act
+f6["q_announce"] = {c: d for (c, fy, q), d in ANNOUNCE.items() if fy == QFY}
+f6["op_dots_q"] = []
+for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리합계")]:
+    dots = []
+    for rid, rows in by_report.items():
+        rm = rmeta.get(rid)
+        if not rm or rm.get("report_type") != "기업":
+            continue
+        for q in _QS:
+            op, basis = op_incl(rows, comp, seg, QFY, q)
+            if op is not None and basis not in ("excl_only", "na") \
+               and not known_mismatch(comp, QFY, q, rm["date"], op):
+                dots.append({"house": rm["house"], "report_date": rm["date"],
+                             "q": q, "op": op, "basis": basis, "report_id": rid})
+    f6["op_dots_q"].append({"company": comp, "segment": seg, "dots": dots})
 for v in iviews:
     if v["direction"]:
         f6["industry_dots"].append({"house": v["house"], "date": v["date"],

@@ -333,7 +333,8 @@ function spark(hist){
   const P=pts.map((p,i)=>`${lin(i,0,pts.length-1,2,w-2)},${lin(p.target_price,lo,hi,h-3,3)}`).join(" ");
   return `<svg width="${w}" height="${h}"><polyline points="${P}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>`}
 function rF3(v){
-  const card=el("div",{class:"card"},`<h2>증권사별 View 변화 추적</h2><p class="note">목표주가 추이·투자의견 이력·논조(평균 스탠스). 행 클릭 시 리포트별 이력</p>`);
+  const card=el("div",{class:"card"},`<h2>증권사별 View 변화 추적</h2><p class="note">맨 좌측 = 펀더멘털 View 변화(AMPC·출하량·가동·수요·수주 등, 날짜별 1줄).
+   논조 = 리포트 내 이슈별 스탠스 점수(-10~+10)의 평균 — 투자의견(매수 등)이 아니라 <b>이슈 코멘트의 방향과 확신도</b>를 채점한 값. 행 클릭 시 리포트별 이력</p>`);
   const ch=el("div",{class:"chips"});COMP.forEach(c=>{const b=el("button",{class:sel.f3===c?"on":""},c);
     b.onclick=()=>{sel.f3=c;render()};ch.append(b)});card.append(ch);
   const series=Object.entries(DATA.f3_views).filter(([k])=>k.endsWith("|"+sel.f3))
@@ -344,7 +345,7 @@ function rF3(v){
     const ops=s.hist.map(h=>`<span class="op ${h.opinion==="매수"?"buy":h.opinion==="매도"?"sell":"hold"}" title="${h.date}">${h.opinion||"–"}</span>`).join(" ");
     const tone=last.avg_stance!=null?(last.avg_stance>0?"+":"")+last.avg_stance:"–";
     const narr=DATA.f3_narratives?.[`${s.house}|${sel.f3}`];
-    const tr=el("tr",{style:"cursor:pointer"},`<td style="max-width:330px"><b>${s.house}</b> <span style="color:var(--muted);font-size:11px">${s.hist.length}건 · ~${last.date}</span>${narr?`<br><span style="font-size:12px;color:var(--ink2)">${narr}</span>`:""}</td>
+    const tr=el("tr",{style:"cursor:pointer"},`<td style="max-width:330px"><b>${s.house}</b> <span style="color:var(--muted);font-size:11px">${s.hist.length}건 · ~${last.date}</span>${narr?`<br><span style="font-size:12px;color:var(--ink2)">${narr.replace(/\n/g,"<br>")}</span>`:""}</td>
       <td>${spark(s.hist)}</td><td class="num">${last.target_price?fmtW(last.target_price):"–"}</td>
       <td>${ops}</td><td class="num" style="color:${last.avg_stance>0?"var(--pos)":last.avg_stance<0?"var(--neg)":"var(--muted)"}">${tone}</td>`);
     tr.onclick=()=>{const old=$("#f3side");old&&old.remove();
@@ -365,7 +366,9 @@ function rF4(v){
   const ch=el("div",{class:"chips"});evs.forEach((e,i)=>{const b=el("button",{class:sel.f4===i?"on":""},`${e.company} ${e.fy}.${e.period}`);
     b.onclick=()=>{sel.f4=i;render()};ch.append(b)});card.append(ch);
   const ev=evs[sel.f4],preds=ev.preds.filter(p=>p.op_err!=null).sort((a,b)=>Math.abs(a.op_err)-Math.abs(b.op_err));
-  card.append(el("p",{class:"note"},`실제 영업이익 <b>${fmt(ev.actual["영업이익"])}원</b> (${ev.announce_date} 발표) · 예측 ${preds.length}건`));
+  const vcls=ev.verdict==="어닝 서프라이즈"?"buy":ev.verdict==="어닝 쇼크"?"sell":"hold";
+  card.append(el("p",{class:"note"},`실제 영업이익 <b>${fmt(ev.actual["영업이익"])}원</b> (${ev.announce_date} 발표) · 예측 ${preds.length}건`
+    +(ev.verdict?` · 프리뷰 컨센서스 중앙값 ${fmt(ev.consensus_median)}원, 실제가 ${ev.diff>0?"+":""}${fmt(ev.diff)}원 ${ev.diff>0?"상회":"하회"} → <span class="op ${vcls}">${ev.verdict}</span>`:"")));
   const W=680,rowH=26,L=110,R=60,H=preds.length*rowH+30;
   const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
   const mx=Math.max(...preds.map(p=>Math.abs(p.op_err)))*1.15;
@@ -408,9 +411,11 @@ function rF4(v){
 /* ---------- F5 아웃라이어 ---------- */
 function rF5(v){
   const card=el("div",{class:"card"},`<h2>추정치 아웃라이어 — 누가 컨센서스에서 벗어나 있나</h2>
-   <p class="note">2026년 3월 이후 최신 리포트 기준, 하우스별 연간 영업이익(AMPC 포함) vs 중앙값</p>`);
+   <p class="note">대상 = <b>실적 발표 직후 분기</b>와 <b>분석년도</b> 영업이익(AMPC 포함, 다음 실적 발표 시 자동 갱신).
+   하우스별 최신 리포트(2026-03 이후) vs 중앙값 — 아래에 <b>최비관·최낙관 포함 3개 하우스</b>의 논거를 하이라이트</p>`);
   DATA.f5_outliers.estimate_outliers.forEach(g=>{
-    const sec=el("div",{class:"qcard"},`<b>${g.company} FY${g.fy} 영업이익</b> <span style="color:var(--muted)">중앙값 ${fmt(g.median)}원 · ${g.n_houses}개사</span>`);
+    const plabel=g.period==="FY"?`FY${g.fy}`:`${g.fy}.${g.period}`;
+    const sec=el("div",{class:"qcard"},`<b>${g.company} ${plabel} 영업이익</b> <span style="color:var(--muted)">중앙값 ${fmt(g.median)}원 · ${g.n_houses}개사</span>`);
     const W=640,H=g.houses.length>8?46:40;
     const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:520px"});
     const vs=g.houses.map(h=>h.op),lo=Math.min(...vs),hi=Math.max(...vs),pad=(hi-lo)*.08||1;
@@ -418,17 +423,18 @@ function rF5(v){
     svg.append(sv("line",{x1:16,x2:W-16,y1:H/2,y2:H/2,stroke:"var(--grid)"}));
     svg.append(sv("line",{x1:X(g.median),x2:X(g.median),y1:6,y2:H-6,stroke:"var(--axis)","stroke-width":2}));
     g.houses.forEach(h=>{const dot=sv("circle",{cx:X(h.op),cy:H/2,r:7,fill:CCOL[g.company],
-      "fill-opacity":Math.abs(h.dev_from_median)>Math.abs(g.median)*.4?1:.45,stroke:"var(--surface)","stroke-width":2});
-      dot.addEventListener("mousemove",e=>hover(e,`<b>${h.house}</b> ${h.date}<br>FY${g.fy} OP ${fmt(h.op)}원 (${h.basis})<br>중앙값 대비 ${h.dev_from_median>0?"+":""}${fmt(h.dev_from_median)}<br><i>클릭 → 논거</i>`));
+      "fill-opacity":h.pick?1:.45,stroke:"var(--surface)","stroke-width":2});
+      dot.addEventListener("mousemove",e=>hover(e,`<b>${h.house}</b>${h.tag?` <b>[${h.tag}]</b>`:""} ${h.date}<br>${plabel} OP ${fmt(h.op)}원 (${h.basis})<br>중앙값 대비 ${h.dev_from_median>0?"+":""}${fmt(h.dev_from_median)}<br><i>클릭 → 논거</i>`));
       dot.addEventListener("mouseleave",unhover);dot.style.cursor="pointer";
       dot.addEventListener("click",()=>{const old2=sec.querySelector(".dyn");old2&&old2.remove();
-        sec.append(el("div",{class:"side dyn"},`<b>${h.house}</b> <span class="m">${h.date} · ${h.basis} · 중앙값 대비 ${h.dev_from_median>0?"+":""}${fmt(h.dev_from_median)}</span><br><span style="font-size:12px">${h.summary||"요약은 상위 2개 이탈 하우스만 수록 — 리포트 원문: "+h.report_id}</span>`))});
+        sec.append(el("div",{class:"side dyn"},`<b>${h.house}</b> <span class="m">${h.date} · ${h.basis} · 중앙값 대비 ${h.dev_from_median>0?"+":""}${fmt(h.dev_from_median)}</span><br><span style="font-size:12px">${h.summary||"요약은 하이라이트 3개 하우스만 수록 — 리포트 원문: "+h.report_id}</span>`))});
       svg.append(dot)});
     sec.append(svg);
-    g.houses.slice(0,2).forEach(h=>{
-      if(Math.abs(h.dev_from_median)<Math.abs(g.median)*0.15&&Math.abs(h.dev_from_median)<300)return;
-      sec.append(el("div",{class:"side"},
-        `<b>${h.house}</b> <span class="m">${h.date} · 중앙값 대비 <b>${h.dev_from_median>0?"+":""}${fmt(h.dev_from_median)}</b> (${h.dev_from_median>0?"강세":"약세"} 이탈)</span><br>
+    g.houses.filter(h=>h.pick).sort((a,b)=>a.op-b.op).forEach(h=>{
+      const tag=h.tag||"최대 이탈";
+      sec.append(el("div",{class:"side",style:h.tag==="최비관"?"border-left-color:var(--neg)":h.tag==="최낙관"?"border-left-color:var(--pos)":""},
+        `<b>${h.house}</b> <span class="op ${h.tag==="최낙관"?"buy":h.tag==="최비관"?"sell":"hold"}">${tag}</span>
+         <span class="m">${h.date} · OP ${fmt(h.op)}원 · 중앙값 대비 <b>${h.dev_from_median>0?"+":""}${fmt(h.dev_from_median)}</b></span><br>
          <span style="font-size:12px">${h.summary||"(리포트 요약 없음)"}</span>`))});
     card.append(sec)});
   v.append(card);
@@ -448,13 +454,17 @@ function rF5(v){
 /* ---------- F6 점도표 ---------- */
 function rF6(v){ // 산업 점도표는 ⑦ 탭으로 이동
 
-  const card=el("div",{class:"card"},`<h2>FOMC식 점도표 — 연간 영업이익 전망 분포</h2>
-   <p class="note">점 1개 = 리포트 1건의 해당 연도 영업이익 추정(AMPC 포함). 가로선 = 중앙값</p>`);
+  sel.f6p??="FY";
+  const card=el("div",{class:"card"},`<h2>FOMC식 점도표 — 영업이익 전망 분포</h2>
+   <p class="note">점 1개 = 리포트 1건의 영업이익 추정(AMPC 포함). 가로선 = 중앙값, 빨간 점선 = 발표된 실적</p>`);
   const ch=el("div",{class:"chips"});COMP.forEach(c=>{const b=el("button",{class:sel.f6===c?"on":""},c);
     b.onclick=()=>{sel.f6=c;render()};ch.append(b)});
+  const pm=el("div",{class:"chips"});[["FY","연간"],["Q",`${DATA.f6_dotplots.q_fy} 분기별`]].forEach(([k,n])=>{
+    const b=el("button",{class:sel.f6p===k?"on":""},n);b.onclick=()=>{sel.f6p=k;render()};pm.append(b)});
   const m=el("div",{class:"chips"});[["latest","하우스별 최신"],["all","전체 리포트"]].forEach(([k,n])=>{
     const b=el("button",{class:sel.f6mode===k?"on":""},n);b.onclick=()=>{sel.f6mode=k;render()};m.append(b)});
-  card.append(ch,m);
+  card.append(ch,pm,m);
+  if(sel.f6p==="Q"){renderF6Q(card);v.append(card);return}
   const grp=DATA.f6_dotplots.op_dots.find(g=>g.company===sel.f6);
   let dots=grp.dots;
   if(sel.f6mode==="latest"){const seen={};dots.slice().sort((a,b)=>b.report_date.localeCompare(a.report_date))
@@ -483,9 +493,47 @@ function rF6(v){ // 산업 점도표는 ⑦ 탭으로 이동
         stroke:"var(--surface)","stroke-width":1.5});
       dot.addEventListener("mousemove",e=>hover(e,`<b>${d.house}</b> ${d.report_date}<br>FY${d.fy} OP <b>${fmt(d.op)}원</b><br><i>${d.basis}</i>`));
       dot.addEventListener("mouseleave",unhover);svg.append(dot)})});
-  card.append(svg,el("p",{class:"note"},"점 농도 = 리포트 최신성 (진할수록 2026년 발간). 모수: '하우스별 최신'=각 증권사의 가장 최근 리포트 1건씩(증권사 수만큼) / '전체 리포트'=모든 리포트의 점(같은 증권사 여러 개 가능). 발표가 끝난 연도는 빨간 점선=실제치 — 여기서 벗어난 점은 회계기준(AMPC 제외·중단사업 포함 등)이 다른 표기입니다(점 위에 basis 표시)."));
+  card.append(svg,el("p",{class:"note"},"점 농도 = 리포트 최신성 (진할수록 2026년 발간). 모수: '하우스별 최신'=각 증권사의 가장 최근 리포트 1건씩(증권사 수만큼) / '전체 리포트'=모든 리포트의 점(같은 증권사 여러 개 가능). 발표가 끝난 연도는 빨간 점선=실제치 — 실적과 일치하지 않는 회계기준(AMPC 제외 등) 표기는 자동 교정되며, 환산 불가한 점은 제외됩니다."));
   v.append(card);
 
+}
+function renderF6Q(card){ // 2026 분기별 점도표
+  const qfy=DATA.f6_dotplots.q_fy;
+  const grp=(DATA.f6_dotplots.op_dots_q||[]).find(g=>g.company===sel.f6);
+  let dots=grp?grp.dots:[];
+  if(sel.f6mode==="latest"){const seen={};dots.slice().sort((a,b)=>b.report_date.localeCompare(a.report_date))
+    .forEach(d=>{const k=d.house+"|"+d.q;if(!seen[k])seen[k]=d});dots=Object.values(seen)}
+  if(!dots.length){card.append(el("p",{class:"note"},"분기별 추정 데이터가 없습니다."));return}
+  const QS=["1Q","2Q","3Q","4Q"],qact=DATA.f6_dotplots.q_actuals?.[sel.f6]||{};
+  const ann=DATA.f6_dotplots.q_announce?.[sel.f6];
+  const W=680,H=340,L=70,T=16,B=30;
+  const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
+  const vs=dots.map(d=>d.op).concat(Object.values(qact));
+  let lo=Math.min(...vs,0),hi=Math.max(...vs,0);const pad=(hi-lo)*.08||1;lo-=pad;hi+=pad;
+  const X=q=>lin(QS.indexOf(q),0,3,L+46,W-96),Y=o=>lin(o,lo,hi,H-B,T);
+  const actYs=Object.values(qact).map(a=>Y(a));
+  [-400,-300,-200,-100,0,100,200].filter(g=>g>lo&&g<hi)
+    .filter(g=>actYs.every(ay=>Math.abs(Y(g)-ay)>12))
+    .forEach(g=>axisY(svg,L,W-16,Y(g),g?fmtA(g):"0"));
+  QS.forEach(q=>{const t=sv("text",{x:X(q),y:H-8,"text-anchor":"middle",class:"lbl"});
+    t.textContent=q+(qact[q]!=null?"":"E");svg.append(t);
+    const act=qact[q];
+    if(act!=null){
+      svg.append(sv("line",{x1:X(q)-40,x2:X(q)+40,y1:Y(act),y2:Y(act),stroke:"var(--neg)","stroke-width":2,"stroke-dasharray":"5 3"}));
+      const at=sv("text",{x:X(q),y:Y(act)-9,"text-anchor":"middle",class:"lbl"});at.setAttribute("fill","var(--neg)");at.textContent=`실제 ${fmtA(act)}`;svg.append(at);}
+    const col=dots.filter(d=>d.q===q);if(!col.length)return;
+    const med=col.map(d=>d.op).sort((a,b)=>a-b)[Math.floor(col.length/2)];
+    if(act==null){
+      svg.append(sv("line",{x1:X(q)-34,x2:X(q)+34,y1:Y(med),y2:Y(med),stroke:"var(--ink2)","stroke-width":2}));
+      const mt=sv("text",{x:X(q)+38,y:Y(med)+4,class:"lbl"});mt.textContent=fmtA(med);svg.append(mt);}
+    col.sort((a,b)=>a.op-b.op).forEach((d,i)=>{
+      const jit=((i%7)-3)*8;
+      const pre=ann&&d.report_date<ann; // 발표 전 추정(프리뷰) 여부
+      const dot=sv("circle",{cx:X(q)+jit,cy:Y(d.op),r:5.5,fill:CCOL[sel.f6],
+        "fill-opacity":qact[q]!=null&&pre?.4:.95,stroke:"var(--surface)","stroke-width":1.5});
+      dot.addEventListener("mousemove",e=>hover(e,`<b>${d.house}</b> ${d.report_date}${qact[q]!=null?(pre?" · <i>발표 전 추정</i>":" · 발표 후"):""}<br>${qfy}.${d.q} OP <b>${fmt(d.op)}원</b><br><i>${d.basis}</i>`));
+      dot.addEventListener("mouseleave",unhover);svg.append(dot)})});
+  card.append(svg,el("p",{class:"note"},`${qfy}년 분기별 영업이익(AMPC 포함) 추정 분포. 실적이 발표된 분기(빨간 점선)의 흐린 점 = 발표 전 프리뷰 추정(빗나감이 정상), 진한 점 = 발표 후 리포트(실적선 위에 있어야 정상). 3Q·4Q는 전망(E).`));
 }
 
 /* ---------- F7 산업 View (v3) ---------- */
@@ -634,15 +682,20 @@ function rF7(v){
     c2.append(tb,detail);v.append(c2);
     // ── D. 강세/약세 논거 대전
     const c3=el("div",{class:"card"},`<h2>강세 vs 약세 논거 대전</h2>
-      <p class="note">테마 선택 → 산업리포트들이 제시한 강세 논거(좌)와 약세 논거(우) 대치</p>`);
-    const thAvail=themes.filter(th=>TH.some(t=>t.theme===th&&(t.bull||t.bear)));
+      <p class="note">테마 선택 → <b>하우스별 최신 리포트</b>의 강세 논거(좌)와 약세 논거(우) 대치. 주가 수익률·밸류에이션성 논거는 제외(펀더멘털만)</p>`);
+    const priceRe=/언더퍼폼|아웃퍼폼|주가|밸류에이션|리레이팅|수익률|YTD/;
+    const thAvail=themes.filter(th=>TH.some(t=>t.theme===th&&((t.bull&&!priceRe.test(t.bull))||(t.bear&&!priceRe.test(t.bear)))));
     sel.f7t??= thAvail[0];
     if(!thAvail.includes(sel.f7t))sel.f7t=thAvail[0];
     const ch=el("div",{class:"chips"});
     thAvail.forEach(th=>{const b=el("button",{class:sel.f7t===th?"on":""},th);
       b.onclick=()=>{sel.f7t=th;render()};ch.append(b)});
     c3.append(ch);
-    const sel2=TH.filter(t=>t.theme===sel.f7t).sort((a,b)=>b.date.localeCompare(a.date));
+    const latestByHouse={};
+    TH.filter(t=>t.theme===sel.f7t).forEach(t=>{if(!latestByHouse[t.house]||t.date>latestByHouse[t.house])latestByHouse[t.house]=t.date});
+    const sel2=TH.filter(t=>t.theme===sel.f7t&&t.date===latestByHouse[t.house])
+      .map(t=>({...t,bull:t.bull&&!priceRe.test(t.bull)?t.bull:null,bear:t.bear&&!priceRe.test(t.bear)?t.bear:null}))
+      .sort((a,b)=>b.date.localeCompare(a.date));
     const grid=el("div",{style:"display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"});
     const colB=el("div",{},`<p style="font:700 12.5px system-ui;color:var(--pos);margin:0 0 6px">▲ 강세 논거</p>`);
     const colR=el("div",{},`<p style="font:700 12.5px system-ui;color:var(--neg);margin:0 0 6px">▼ 약세 논거</p>`);
