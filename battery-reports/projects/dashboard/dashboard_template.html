@@ -307,15 +307,15 @@ function segDetailCard(v,metric,ckey,okey,title){
 /* ---------- F2 스탠스 매트릭스 ---------- */
 function rF2(v){
   const card=el("div",{class:"card"},`<h2>이슈별 3사 스탠스 매트릭스</h2>
-    <p class="note">셀 = 2026년 리포트 스탠스 중앙값 (<b>-10 매우부정 ~ +10 매우긍정</b>, 크기=확신 강도) · 셀을 클릭하면 증권사별 근거 표시</p>`);
+    <p class="note">셀 = <b>하우스당 최신 리포트 1건</b> 기준 스탠스 중앙값(평균 병기), <b>-10 매우부정 ~ +10 매우긍정</b> · 셀을 클릭하면 증권사별 근거 표시</p>`);
   const rows={};DATA.f2_stance.forEach(r=>{(rows[r.issue]??={}).c=(rows[r.issue].c||0)+r.n;(rows[r.issue])[r.company]=r});
   const issues=Object.keys(rows).sort((a,b)=>rows[b].c-rows[a].c).slice(0,14);
   const tb=el("table");tb.append(el("tr",{},`<th>이슈</th>${COMP.map(c=>`<th>${c}</th>`).join("")}`));
   issues.forEach(iss=>{
     const tr=el("tr");tr.append(el("td",{},`<b>${iss}</b>`));
     COMP.forEach(c=>{const r=rows[iss][c];
-      const td=el("td",{class:"cell",style:`background:${r?divCol(r.median_recent):"transparent"};text-align:center;font-weight:700`},
-        r?(r.median_recent>0?"+":"")+r.median_recent+`<span style="font-weight:400;color:var(--muted)"> (${r.n})</span>`:"·");
+      const td=el("td",{class:"cell",style:`background:${r?divCol(r.median_recent):"transparent"};text-align:center`},
+        r?`<b>${r.median_recent>0?"+":""}${r.median_recent}</b><br><span style="font-size:10.5px;color:var(--ink2)">평균 ${r.mean_recent>0?"+":""}${r.mean_recent} · ${r.n_houses}사</span>`:"·");
       if(r){td.onclick=()=>{const old=$("#f2side");old&&old.remove();
         const s=el("div",{id:"f2side"},`<h2 style="font-size:14px;margin:14px 0 4px">${iss} × ${c}</h2>`);
         r.items.slice().reverse().forEach(i=>s.append(el("div",{class:"side"},

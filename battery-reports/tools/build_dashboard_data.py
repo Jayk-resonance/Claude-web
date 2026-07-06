@@ -111,10 +111,15 @@ for s in stances:
 f2 = []
 for (issue, comp), items in mat.items():
     items.sort(key=lambda x: x["date"])
-    recent = [i for i in items if i["date"] >= "2026-01-01"] or items
+    latest = {}
+    for i in items:  # 하우스당 최신 1건 (1하우스 1표)
+        cur = latest.get(i["house"])
+        if not cur or i["date"] > cur["date"]:
+            latest[i["house"]] = i
+    lv = [i["score"] for i in latest.values()]
     f2.append({"issue": issue, "company": comp,
-               "median_recent": st.median([i["score"] for i in recent]),
-               "n": len(items), "items": items})
+               "median_recent": st.median(lv), "mean_recent": round(st.mean(lv), 1),
+               "n_houses": len(lv), "n": len(items), "items": items})
 
 # ---------- F3: 증권사별 View 변화 ----------
 f3 = collections.defaultdict(list)
