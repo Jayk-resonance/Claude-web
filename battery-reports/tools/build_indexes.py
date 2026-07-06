@@ -20,6 +20,9 @@ PERIODS = {"FY", "1Q", "2Q", "3Q", "4Q"}
 OPINIONS = {"매수", "중립", "매도", None}
 
 COMPANY_STD = {"LG에너지솔루션": "LGES", "엘지에너지솔루션": "LGES", "LG Energy Solution": "LGES"}
+REGION_STD = {"미국": "북미", "캐나다": "북미", "독일": "유럽", "프랑스": "유럽",
+              "영국": "유럽", "이탈리아": "유럽", "스페인": "유럽", "EU": "유럽",
+              "일본": "기타", "인도": "기타", "아세안": "기타"}
 
 
 def canon_company(c):
@@ -65,6 +68,9 @@ def validate(r):
         if not isinstance(d, (int, float)) or not -10 <= d <= 10:
             warn(rid, f"theme direction 범위 밖: {d} ({t.get('theme')})")
     for df in r.get("demand_forecasts", []) or []:
+        if df.get("region") in REGION_STD:
+            df["basis"] = ((df.get("basis") or "") + f" [원문지역:{df['region']}]").strip()
+            df["region"] = REGION_STD[df["region"]]
         if df.get("region") not in ("글로벌", "북미", "유럽", "중국", "한국", "기타"):
             warn(rid, f"demand region 비표준: {df.get('region')}")
         if df.get("application") not in ("EV", "ESS", "합계"):
@@ -84,6 +90,15 @@ def yflow(items, keys):
             parts.append(f"{k}: {v}")
         out.append("  - {" + ", ".join(parts) + "}")
     return "\n".join(out) if out else "  []"
+
+
+def _bs(x):
+    """body 필드 타입 보정: 리스트→개행 결합, None→빈문자열."""
+    if x is None:
+        return ""
+    if isinstance(x, list):
+        return "\n".join(str(i) for i in x)
+    return str(x)
 
 
 def render_md(r):
@@ -122,12 +137,12 @@ def render_md(r):
         fm.append("top_picks: [" + ", ".join(r["top_picks"]) + "]")
     fm.append(f"source_pdf: inbox/{r.get('source_file', '')}")
     fm.append("---")
-    body = ["", "## 핵심 요약", b.get("summary", ""),
-            "", "## 투자의견·목표주가 (도출 근거)", b.get("valuation", ""),
-            "", "## 사업부문별 손익", b.get("segment_pl", ""),
-            "", "## 이슈별 코멘트", b.get("issue_comments", ""),
-            "", "## 리스크 요인", b.get("risks", ""),
-            "", "## 원문 인용", b.get("quotes", ""), ""]
+    body = ["", "## 핵심 요약", _bs(b.get("summary")),
+            "", "## 투자의견·목표주가 (도출 근거)", _bs(b.get("valuation")),
+            "", "## 사업부문별 손익", _bs(b.get("segment_pl")),
+            "", "## 이슈별 코멘트", _bs(b.get("issue_comments")),
+            "", "## 리스크 요인", _bs(b.get("risks")),
+            "", "## 원문 인용", _bs(b.get("quotes")), ""]
     return "\n".join(fm) + "\n" + "\n".join(body)
 
 
@@ -194,7 +209,7 @@ def main(check_only=False):
                    ["report_id", "date", "house", "analyst", "coverage",
                     "report_type", "opinion", "target_price",
                     "prev_target_price", "key_issues", "top_picks"]}
-            row["summary"] = r["body"].get("summary", "")
+            row["summary"] = _bs(r["body"].get("summary"))
             row["source_pdf"] = "inbox/" + r["source_file"]
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 

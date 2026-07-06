@@ -536,9 +536,14 @@ function rF7(v){
     const pubYears=["전체",...new Set(D.map(d=>d.date.slice(0,4)))].sort();
     c1.append(mk(pubYears,"f7y",y=>y==="전체"?"발간: 전체":"발간 "+y));
     c1.append(mk(["curve","revision"],"f7mode",m=>m==="curve"?"연도별 전망 곡선":"리비전 추적(대상연도 고정)"));
-    let rows=D.filter(d=>d.region===sel.f7r&&d.application===sel.f7a&&d.metric===sel.f7m&&d.fy);
+    let rows0=D.filter(d=>d.region===sel.f7r&&d.application===sel.f7a&&d.metric===sel.f7m&&d.fy);
+    const units=[...new Set(rows0.map(d=>d.unit))].filter(Boolean)
+      .sort((a,b)=>rows0.filter(d=>d.unit===b).length-rows0.filter(d=>d.unit===a).length);
+    if(!units.includes(sel.f7u))sel.f7u=units.includes("GWh")?"GWh":units[0];
+    if(units.length>1)c1.append(mk(units,"f7u",u=>"단위 "+u));
+    let rows=rows0.filter(d=>d.unit===sel.f7u);
     if(sel.f7y!=="전체")rows=rows.filter(d=>d.date.slice(0,4)===sel.f7y);
-    const unit=rows[0]?.unit||"";
+    const unit=sel.f7u||"";
     if(!rows.length){c1.append(el("p",{class:"note"},"이 조합의 데이터가 없습니다."));v.append(c1)}
     else if(sel.f7mode==="curve"){
       const W=700,H=280,L=70,R=30,T=16,B=30;
@@ -547,7 +552,7 @@ function rF7(v){
       const x0=Math.min(...fys),x1=Math.max(...fys);
       let lo=0,hi=Math.max(...vs)*1.08;
       const X=fy=>lin(fy,x0,x1,L,W-R),Y=val=>lin(val,lo,hi,H-B,T);
-      [0,.5,1].forEach(f=>{const gv=Math.round(hi*f);axisY(svg,L,W-R,Y(gv),gv.toLocaleString())});
+      [0,.5,1].forEach(f=>{const gv=Math.round(hi*f);axisY(svg,L,W-R,Y(gv),gv.toLocaleString()+(f===1?unit:""))});
       for(let fy=x0;fy<=x1;fy++){if((fy-x0)%Math.ceil((x1-x0)/8||1)===0){const t=sv("text",{x:X(fy),y:H-8,"text-anchor":"middle"});t.textContent=fy;svg.append(t)}}
       const byRep={};rows.forEach(r=>{(byRep[r.report_id]??=[]).push(r)});
       Object.values(byRep).forEach(arr=>{arr.sort((a,b)=>a.fy-b.fy);
