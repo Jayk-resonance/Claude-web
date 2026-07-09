@@ -37,6 +37,7 @@ nav button.on{background:var(--ink);color:var(--page);border-color:var(--ink)}
   padding:16px;margin-bottom:16px;overflow-x:auto}
 .card h2{font-size:15px;margin:0 0 2px}
 .card .note{color:var(--muted);font-size:12px;margin:0 0 10px}
+.card .head-msg{margin:6px 0 12px;padding:9px 13px;background:var(--chip);border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.5}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
 .tile .v{font-size:24px;font-weight:700}
@@ -162,8 +163,8 @@ function layoutEndLabels(items,minGap){ // items:[{y}] — y를 제자리 수정
   const s=items.slice().sort((a,b)=>a.y-b.y);
   for(let i=1;i<s.length;i++)if(s[i].y-s[i-1].y<minGap)s[i].y=s[i-1].y+minGap;
 }
-function lineChart(box,title,note,metric){
-  const card=el("div",{class:"card"},`<h2>${title}</h2><p class="note">${note}</p>`);
+function lineChart(box,title,head,note,metric){
+  const card=el("div",{class:"card"},`<h2>${title}</h2>${headMsg(head)}`);
   const W=700,H=250,L=64,R=128,T=14,B=28;
   const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
   const S=COMP.map(c=>({c,pts:qseries(c,metric)}));
@@ -198,17 +199,31 @@ function lineChart(box,title,note,metric){
   card.append(svg);
   const lg=el("div",{class:"legend"});COMP.forEach(c=>lg.append(el("span",{}, `<i style="background:${CCOL[c]}"></i>${c}`)));
   lg.append(el("span",{},`<i style="background:transparent;border:2px dashed var(--muted)"></i>점선 = 컨센서스 전망(E)`));card.append(lg);
+  card.append(el("p",{class:"note",style:"margin-top:8px"},note));
   // 표 뷰
   const d=el("details",{},`<summary>표로 보기</summary>`),tb=el("table");
   tb.append(el("tr",{},`<th>분기</th>${COMP.map(c=>`<th style="text-align:right">${c}</th>`).join("")}`));
   S[0].pts.forEach((_,i)=>tb.append(el("tr",{},`<td>${S[0].pts[i].label}</td>${S.map(s=>`<td class="num">${fmt(s.pts[i].v)}</td>`).join("")}`)));
   d.append(tb);card.append(d);box.append(card);
 }
+// 그래프에서 도출한 Fact Finding 한줄 요약 (Head Message)
+const F1HEAD={
+  매출전사:"3사 모두 '26년 하반기 매출 회복 국면 — LGES(8.2조)가 삼성SDI의 약 1.8배·SK온의 4배 규모로 외형 격차 유지",
+  영업이익전사:"'26.1Q 3사 동반 적자 저점을 지나 '26.4Q LGES·삼성SDI는 흑자 전환·확대, SK온만 적자 지속 전망",
+  매출부문:{
+    LGES:"ESS 매출이 '25.1Q 대비 7배 급증해 '26.4Q EV에 근접(3.17조 vs 3.20조), EV 물량 감소를 상쇄",
+    삼성SDI:"EV 매출은 정체된 반면 ESS(2.3배)·소형(1.5배) 성장이 '26년 외형 확대를 견인",
+    SK온:"부문 분해 매출 공시가 없어 전사(배터리) 합계만 제공 — 1-1 차트 참조"},
+  영업이익부문:{
+    LGES:"'26.4Q 부문 손익은 AMPC(5,520억)가 최대 기여, ESS는 흑자 전환하나 EV는 적자 지속",
+    삼성SDI:"소형이 흑자 전환하고 중대형 적자폭도 축소되나 '26.4Q까지 중대형(EV+ESS)은 적자 지속",
+    SK온:"부문 분해 영업이익 공시가 없어 AMPC(1,678억) 추정만 표시 — 전사 손익은 2-1 차트 참조"}};
+const headMsg=t=>`<div class="head-msg">${t}</div>`;
 function rF1(v){
-  lineChart(v,"1-1) 분기 매출 (전사, AMPC 제외 기준)","LGES는 재작성 전(AMPC 제외) 매출 사용 — 3사 비교 왜곡 방지 · 26.2Q(E)부터 점선 = 컨센서스 중앙값","매출");
-  segDetailCard(v,"매출","f1sr","f1srO","1-2) 사업부문별 분기 매출");
-  lineChart(v,"2-1) 분기 영업이익 (전사, AMPC 포함)","LGES·삼성SDI=회사 IR 확정치 / SK온 배터리=애널리스트 인용 중앙값 · 26.2Q(E)부터 점선 = 컨센서스 중앙값(② 점도표와 동일값)","영업이익");
-  segDetailCard(v,"영업이익","f1so","f1soO","2-2) 사업부문별 분기 영업이익");
+  lineChart(v,"1-1 분기별 매출액 (전사, AMPC 제외 기준)",F1HEAD.매출전사,"LGES는 재작성 전(AMPC 제외) 매출 사용 — 3사 비교 왜곡 방지 · 26.2Q(E)부터 점선 = 컨센서스 중앙값","매출");
+  segDetailCard(v,"매출","f1sr","f1srO","1-2 분기별 매출액 (사업부문별)",F1HEAD.매출부문);
+  lineChart(v,"2-1 분기별 영업이익 (전사, AMPC 포함)",F1HEAD.영업이익전사,"LGES·삼성SDI=회사 IR 확정치 / SK온 배터리=애널리스트 인용 중앙값 · 26.2Q(E)부터 점선 = 컨센서스 중앙값(② 점도표와 동일값)","영업이익");
+  segDetailCard(v,"영업이익","f1so","f1soO","2-2 분기별 영업이익 (사업부문별)",F1HEAD.영업이익부문);
 
   // [참고] 증권사 추정 상세 (회사 탭) — 탭을 눌러 활성화
   const segAll=DATA.f1_quarterly.seg_consensus?.[sel.f1c]||{};
@@ -307,14 +322,15 @@ function segSeries(comp,metric){
   if(tpts.some(p=>p.v!=null))out.push({g:"합계",seg:totSeg,pts:tpts,total:true});
   return {out,labels:Q.map(([fy,p],i)=>`${String(fy).slice(2)}.${p}${i>=5?"E":""}`),ampcDetail};
 }
-function segDetailCard(v,metric,ckey,okey,title){
+function segDetailCard(v,metric,ckey,okey,title,headMap){
   const card=el("div",{class:"card"},`<h2>${title}</h2>`);
   const comp=sel[ckey]||"LGES";
-  const cch=el("div",{class:"chips",style:"margin-top:12px"});
+  if(headMap&&headMap[comp])card.append(el("div",{},headMsg(headMap[comp])).firstChild);
+  const cch=el("div",{class:"chips",style:"margin-top:2px"});
   COMP.forEach(c=>{const b=el("button",{class:comp===c?"on":""},c);
     b.onclick=()=>{sel[ckey]=c;render()};cch.append(b)});
   card.append(cch);
-  card.append(el("p",{class:"note"},`${comp} — 부문별 ${metric} 컨센서스 추이 · `+(metric==="영업이익"?"AMPC 제외(excl) 중앙값":"AMPC 제외 기준 중앙값")+` · 점 = 참여 증권사 중앙값(클릭 시 증권사별) · 실선 = 실적 구간, 점선 = 전망(26.2Q~, 속 빈 점) · <b>합계는 차트 상단 숫자 행</b>`+(metric==="영업이익"?` · AMPC는 가는 보라 별도 시리즈`+(comp==="LGES"?" — EV/ESS 분해는 아래 'AMPC 상세'":""):"")));
+  const noteHtml=`${comp} — 부문별 ${metric} 컨센서스 추이 · `+(metric==="영업이익"?"AMPC 제외(excl) 중앙값":"AMPC 제외 기준 중앙값")+` · 점 = 참여 증권사 중앙값(클릭 시 증권사별) · 실선 = 실적 구간, 점선 = 전망(26.2Q~, 속 빈 점) · <b>합계는 차트 상단 숫자 행</b>`+(metric==="영업이익"?` · AMPC는 가는 보라 별도 시리즈`+(comp==="LGES"?" — EV/ESS 분해는 아래 'AMPC 상세'":""):"");
   const {out,labels,ampcDetail}=segSeries(comp,metric);
   if(!out.length){card.append(el("p",{class:"note"},"이 회사는 부문별 분기 컨센서스 데이터가 없습니다 (리포트가 부문 분해를 제공하지 않음)."));v.append(card);return}
   const prim=out.filter(s2=>!s2.total),tot=out.find(s2=>s2.total);
@@ -333,7 +349,7 @@ function segDetailCard(v,metric,ckey,okey,title){
       t.addEventListener("mouseleave",unhover);svg.append(t)});
     svg.append(sv("line",{x1:L-4,x2:W-R+4,y1:22,y2:22,stroke:"var(--grid)"}));
   }
-  if(!prim.length){card.append(svg);v.append(card);return}
+  if(!prim.length){card.append(svg);card.append(el("p",{class:"note",style:"margin-top:8px"},noteHtml));v.append(card);return}
   const all=prim.flatMap(s2=>s2.pts.map(p=>p.v)).filter(x=>x!=null);
   let lo=Math.min(...all,0),hi=Math.max(...all,0);const pad=(hi-lo)*.1||1;lo-=pad;hi+=pad;
   const Y=x=>lin(x,lo,hi,H-B,T);
@@ -370,6 +386,7 @@ function segDetailCard(v,metric,ckey,okey,title){
     if(Math.abs(y-4-Y(last.v))>6)svg.append(sv("line",{x1:X(last.i)+3,y1:Y(last.v),x2:X(last.i)+7,y2:y-4,stroke:col,"stroke-width":1,"stroke-opacity":.5}));
     const t=sv("text",{x:X(last.i)+8,y,class:"lbl"});t.setAttribute("fill",col);t.textContent=`${s2.g} ${fmtA(last.v)}`;svg.append(t)});
   card.append(svg);
+  card.append(el("p",{class:"note",style:"margin-top:8px"},noteHtml));
   // AMPC 상세 (LGES 영업이익): 전사/EV/ESS 분기별 — 증권사 모수가 달라 전사 ≠ EV+ESS 일 수 있음
   if(ampcDetail&&ampcDetail.length){
     const tg2=el("button",{style:"border:1px solid var(--border);background:var(--chip);color:var(--ink2);padding:5px 12px;border-radius:12px;font:600 12px system-ui;cursor:pointer;margin-top:10px"},
