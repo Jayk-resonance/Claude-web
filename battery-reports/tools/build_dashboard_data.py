@@ -531,8 +531,26 @@ for t in _load("themes.csv"):
 f7 = {"regimes": regimes, "demand": demand_rows, "themes": theme_rows,
       "n_reports": len(ind_reports)}
 
+# 원본 PDF 총 페이지 수 (분석 볼륨 지표). pdfinfo·원본 PDF가 있으면 계수, 없으면 None.
+def total_pages():
+    import subprocess as sp, re as _re
+    tot = 0
+    for r in reports:
+        path = os.path.join(ROOT, r.get("source_pdf", "")) if r.get("source_pdf") else ""
+        if not path or not os.path.exists(path):
+            return None  # 원본 PDF가 없으면(영속 DB만 존재) 페이지 지표 생략
+        try:
+            out = sp.run(["pdfinfo", path], capture_output=True, text=True, timeout=20).stdout
+            m = _re.search(r"Pages:\s+(\d+)", out)
+            if m:
+                tot += int(m.group(1))
+        except Exception:
+            return None
+    return tot or None
+
 data = {"meta": {"built_from": "battery-reports index v2", "n_reports": len(reports),
                  "n_industry": sum(1 for r in reports if r.get("report_type") == "산업"),
+                 "n_pages": total_pages(),
                  "n_estimates": len(est), "houses": sorted({r['house'] for r in reports}),
                  "period": f"{min(r['date'] for r in reports)} ~ {max(r['date'] for r in reports)}",
                  "note_basis": "영업이익 비교는 AMPC 포함(incl) 기준 통일. excl만 있는 경우 AMPC 가산 파생(derived). LGES 매출은 1Q26부터 AMPC 병합 표시(IR 재작성 기준)."},

@@ -127,19 +127,19 @@ function render(){
 /* ---------- 개요 ---------- */
 function rOver(v){
   const t=el("div",{class:"tiles"});
-  const ind=DATA.meta.n_industry||0;
-  const items=[[DATA.meta.n_reports+"건","증권사 리포트",`산업리포트 ${ind}건 포함 (기업 ${DATA.meta.n_reports-ind}건)`],
+  const ind=DATA.meta.n_industry||0, np=DATA.meta.n_pages;
+  const items=[[DATA.meta.n_reports+"건","증권사 리포트",`산업리포트 ${ind}건 포함`],
    [DATA.meta.houses.length+"곳","증권사",null],
-   ["3사","LG엔솔·삼성SDI·SK온",null],
+   np?[np.toLocaleString()+"p","분석한 리포트 페이지",null]:["3사","LG엔솔·삼성SDI·SK온",null],
    ["3.1년","커버 기간",DATA.meta.period]];
   items.forEach(([a,b,c])=>t.append(el("div",{class:"tile"},`<div class="v">${a}</div><div class="k">${b}</div>${c?`<div style="font-size:11px;color:var(--muted);margin-top:3px">${c}</div>`:""}`)));
   v.append(t);
   // 처음 보는 사람을 위한 탭 가이드
-  const g=el("div",{class:"card"},`<h2>이 대시보드 사용법</h2>${headMsg("K-배터리 3사에 대한 증권사들의 실적 추정·전망·시각을 한자리에 모아, 시장의 눈높이와 이견을 빠르게 파악하는 도구입니다.")}
+  const g=el("div",{class:"card",style:"margin-top:20px"},`<h2>Overview</h2>${headMsg("K-배터리 3사에 대한 증권사들의 실적 추정·전망·시각을 한자리에 모아, 시장의 눈높이와 이견을 빠르게 파악하는 도구입니다.")}
    <p class="note">아래 순서대로 보면 자연스럽습니다 — <b>현재 실적(①)</b> → <b>미래 전망 분포(②)</b> → <b>과거 적중 여부(③)</b> → <b>이슈·시각·수요(④⑤⑥)</b>.</p>`);
-  [["① 분기 실적","3사의 분기별 매출·영업이익 실적과, 미발표 분기의 컨센서스 전망(점선). <b>지금 실적이 어디에 와 있는지</b> 먼저 확인."],
+  [["① 분기 실적","컨센서스 기준 3사의 분기별 매출·영업이익 실적과 미발표 분기 전망(점선), 그리고 <b>사업부문별 손익</b>까지. <b>지금 실적이 어디에 와 있는지</b> 먼저 확인."],
    ["② 점도표","증권사별 영업이익 <b>전망</b>이 얼마나 흩어져 있는지(FOMC식 분포). 같은 회사에 대한 시장의 <b>눈높이 차이와 최대 비관·낙관</b>을 봅니다."],
-   ["③ 적중률","이미 발표된 분기를 <b>되돌아보며</b>, 컨센서스가 실제와 얼마나 맞았는지(어닝 쇼크·서프라이즈). ②가 미래라면 ③은 과거 Look-back."],
+   ["③ 적중률","이미 발표된 분기에서 컨센서스가 실제와 얼마나 맞았는지(어닝 쇼크·서프라이즈)와 <b>어느 증권사의 추정이 정확했는지</b>. ②가 미래 전망이라면 ③은 과거 실적 대비 검증."],
    ["④ 이슈별 View","LFP·ESS·AMPC·파우치 등 <b>이슈별</b>로 3사에 대한 증권사 시각(스탠스)을 매트릭스로 비교."],
    ["⑤ View 변화","한 증권사의 시각이 <b>시간에 따라</b> 어떻게 바뀌었는지(목표가·의견·논조 추이) 추적."],
    ["⑥ 시장 전망 View","산업 리포트 기반 EV·ESS <b>시장 수요</b> 전망과 그 변화."]]
@@ -519,13 +519,14 @@ const F4WHY={
  "SK온":"국내 EV 판매 호조로 가동률이 개선되며 파우치 부진을 상쇄, 대체로 컨센서스 수준의 적자를 기록했습니다."};
 function rF4(v){
   const evs=DATA.f4_accuracy.events;
-  const card=el("div",{class:"card"},`<h2>컨센서스 적중률 — 지난 분기 되돌아보기</h2>
-   <p class="note">② 점도표가 <b>미래</b> 전망의 분포라면, 여기는 이미 발표된 분기를 <b>되돌아보며(Look-back)</b> 발표 직전 컨센서스가 실제와 얼마나 맞았는지 봅니다.</p>`);
+  const card=el("div",{class:"card"},`<h2>컨센서스 적중률 — 발표된 분기 실적 대비 검증</h2>
+   <p class="note">② 점도표가 <b>미래</b> 전망의 분포라면, 여기는 이미 발표된 분기에서 발표 직전 컨센서스가 <b>실제와 얼마나 맞았는지</b>, 또 <b>어느 증권사가 가장 근접했는지</b>를 검증합니다.</p>`);
   const ch=el("div",{class:"chips"});evs.forEach((e,i)=>{const b=el("button",{class:sel.f4===i?"on":""},`${e.company} ${e.fy}.${e.period}`);
     b.onclick=()=>{sel.f4=i;render()};ch.append(b)});card.append(ch);
   const ev=evs[sel.f4],preds=ev.preds.filter(p=>p.op_err!=null).sort((a,b)=>Math.abs(a.op_err)-Math.abs(b.op_err));
   const vcol=ev.verdict==="어닝 서프라이즈"?"var(--pos)":ev.verdict==="어닝 쇼크"?"var(--neg)":"var(--ink2)";
-  card.append(el("div",{},headMsg(`<b style="color:${vcol}">${ev.verdict}</b> · 실제 ${fmtA(ev.actual["영업이익"])} vs 프리뷰 컨센서스 중앙값 ${fmtA(ev.consensus_median)} (실제가 ${ev.diff>0?"+":""}${fmtA(ev.diff)} ${ev.diff>0?"상회":"하회"}) — ${F4WHY[ev.company]||""}`)).firstChild);
+  const best=preds[0];
+  card.append(el("div",{},headMsg(`<b style="color:${vcol}">${ev.verdict}</b> · 실제 ${fmtA(ev.actual["영업이익"])} vs 프리뷰 컨센서스 중앙값 ${fmtA(ev.consensus_median)} (실제가 ${ev.diff>0?"+":""}${fmtA(ev.diff)} ${ev.diff>0?"상회":"하회"}) — ${F4WHY[ev.company]||""}${best?` <b>가장 근접: ${best.house}</b>(추정−실제 ${best.op_err>0?"+":""}${fmtA(best.op_err)}).`:""}`)).firstChild);
   card.append(el("p",{class:"note",style:"margin-bottom:2px"},`<b>막대 = 추정 − 실제 (억원)</b> · <span style="color:var(--pos)">오른쪽(+) = 과대추정</span> · <span style="color:var(--neg)">왼쪽(−) = 과소추정</span> · 0에 가까울수록 정확 · ${ev.announce_date} 발표, 예측 ${preds.length}건`));
   const W=680,rowH=26,L=110,R=60,H=preds.length*rowH+30;
   const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
