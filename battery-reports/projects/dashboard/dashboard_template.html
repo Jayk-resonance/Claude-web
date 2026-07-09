@@ -110,7 +110,7 @@ function axisY(g,x0,x1,y,v){g.append(sv("line",{x1:x0,x2:x1,y1:y,y2:y,stroke:"va
   const t=sv("text",{x:x0-6,y:y+3,"text-anchor":"end"});t.textContent=v;g.append(t)}
 
 /* ---------- 탭 ---------- */
-const TABS=[["overview","개요"],["f1","① 분기 실적"],["f6","② 점도표·아웃라이어"],["f4","③ 적중률"],
+const TABS=[["overview","개요"],["f1","① 분기 실적"],["f6","② 점도표"],["f4","③ 적중률"],
  ["f2","④ 이슈별 View"],["f3","⑤ View 변화"],["f7","⑥ 시장 전망 View"]];
 let tab="overview", sel={f1:"LGES",f1c:"LGES",f1p:null,f1sr:"LGES",f1so:"LGES",f1srO:false,f1soO:false,f3:"LGES",f4:0,f6:"LGES",f6mode:"latest",f7s:null};
 function render(){
@@ -133,7 +133,7 @@ function rOver(v){
   [["🎯 1Q26 적중왕: 키움증권","LGES 1Q26 영업이익을 오차 <b>31억원</b>으로 예측 (추정 -2,049 vs 실제 -2,080억원). → ③ 적중률",
    ],["📉 2023년 낙관의 붕괴","2023년 리포트들의 LGES FY2025 영업이익 추정은 실제 대비 <b>+6.3조원</b> 과대 (대신·SK증권 7.5조 전망 vs 실제 1.3조). → ③ 적중률(빈티지)"],
    ["↔ 2027년 전망 3.7배 격차","LGES 2027E 영업이익: LS증권 1.4조 vs 삼성증권 5.2조 — 같은 회사, 같은 달 리포트. → ② 점도표"],
-   ["⚠ SK온 정면 충돌","KB증권 '27년 흑자전환' vs LS증권 '적자 지속+추가 손상 리스크'. 파우치 M/S 28%→11%가 쟁점. → ② 점도표·아웃라이어"]]
+   ["⚠ SK온 정면 충돌","KB증권 '27년 흑자전환' vs LS증권 '적자 지속+추가 손상 리스크'. 파우치 M/S 28%→11%가 쟁점. → ② 점도표"]]
   .forEach(([a,b])=>hi.append(el("div",{class:"qcard"},`<b>${a}</b><p>${b}</p>`)));
   v.append(hi);
   v.append(el("div",{class:"card"},`<h2>기준(Basis) 안내</h2><p class="note">3사 비교가 왜곡되지 않도록 적용한 정규화</p>
