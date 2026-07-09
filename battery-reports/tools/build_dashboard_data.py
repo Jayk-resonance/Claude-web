@@ -270,7 +270,7 @@ for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리�
             # 하이라이트 3곳: 최비관·최낙관 필수 + 나머지 중 최대 이탈
             lo_h = min(latest.values(), key=lambda x: x["op"])
             hi_h = max(latest.values(), key=lambda x: x["op"])
-            lo_h["tag"] = "최비관"; hi_h["tag"] = "최낙관"
+            lo_h["tag"] = "최대 비관"; hi_h["tag"] = "최대 낙관"
             picks, seen = [], set()
             for h in [lo_h, hi_h] + ranked:
                 if h["house"] not in seen:
@@ -278,7 +278,7 @@ for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리�
                 if len(picks) == 3:
                     break
             for v in picks:
-                v["summary"] = (rmeta.get(v["report_id"], {}).get("summary") or "")[:220]
+                v["summary"] = (rmeta.get(v["report_id"], {}).get("summary") or "")
                 v["pick"] = True
             f5["estimate_outliers"].append(
                 {"company": comp, "fy": fy, "period": period, "median": med,
