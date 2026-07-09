@@ -38,6 +38,8 @@ nav button.on{background:var(--ink);color:var(--page);border-color:var(--ink)}
 .card h2{font-size:15px;margin:0 0 2px}
 .card .note{color:var(--muted);font-size:12px;margin:0 0 10px}
 .card .head-msg{margin:6px 0 12px;padding:9px 13px;background:var(--chip);border-left:3px solid var(--accent);border-radius:0 7px 7px 0;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.5}
+.datechip{display:inline-block;background:var(--chip);color:var(--ink2);font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:8px;margin-right:2px;white-space:nowrap;vertical-align:middle}
+.nline{margin:5px 0;font-size:12px;color:var(--ink2);line-height:1.55}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
 .tile .v{font-size:24px;font-weight:700}
@@ -114,7 +116,7 @@ const TABS=[["overview","개요"],["f1","① 분기 실적"],["f6","② 점도�
  ["f2","④ 이슈별 View"],["f3","⑤ View 변화"],["f7","⑥ 시장 전망 View"]];
 let tab="overview", sel={f1:"LGES",f1c:"LGES",f1p:null,f1sr:"LGES",f1so:"LGES",f1srO:false,f1soO:false,f3:"LGES",f4:0,f6:"LGES",f6mode:"latest",f7s:null};
 function render(){
-  $("#subline").textContent=`리포트 ${DATA.meta.n_reports}건 · ${DATA.meta.houses.length}개 증권사 · ${DATA.meta.period} · 추정치 ${DATA.meta.n_estimates.toLocaleString()}행`;
+  $("#subline").textContent=`리포트 ${DATA.meta.n_reports}건 (산업 ${DATA.meta.n_industry||0}건 포함) · ${DATA.meta.houses.length}개 증권사 · ${DATA.meta.period}`;
   const nav=$("#nav");nav.innerHTML="";
   TABS.forEach(([id,name])=>{const b=el("button",{class:tab===id?"on":""},name);
     b.onclick=()=>{tab=id;render()};nav.append(b)});
@@ -125,18 +127,25 @@ function render(){
 /* ---------- 개요 ---------- */
 function rOver(v){
   const t=el("div",{class:"tiles"});
-  const items=[[DATA.meta.n_reports+"건","증권사 리포트"],[DATA.meta.houses.length+"곳","증권사"],
-   [DATA.meta.n_estimates.toLocaleString(),"추정치 행"],["3.1년","커버 기간 (23.05~26.07)"]];
-  items.forEach(([a,b])=>t.append(el("div",{class:"tile"},`<div class="v">${a}</div><div class="k">${b}</div>`)));
+  const ind=DATA.meta.n_industry||0;
+  const items=[[DATA.meta.n_reports+"건","증권사 리포트",`산업리포트 ${ind}건 포함 (기업 ${DATA.meta.n_reports-ind}건)`],
+   [DATA.meta.houses.length+"곳","증권사",null],
+   ["3사","LG엔솔·삼성SDI·SK온",null],
+   ["3.1년","커버 기간",DATA.meta.period]];
+  items.forEach(([a,b,c])=>t.append(el("div",{class:"tile"},`<div class="v">${a}</div><div class="k">${b}</div>${c?`<div style="font-size:11px;color:var(--muted);margin-top:3px">${c}</div>`:""}`)));
   v.append(t);
-  const hi=el("div",{class:"card"},`<h2>하이라이트</h2><p class="note">DB가 자동으로 찾아낸 이야기들</p>`);
-  [["🎯 1Q26 적중왕: 키움증권","LGES 1Q26 영업이익을 오차 <b>31억원</b>으로 예측 (추정 -2,049 vs 실제 -2,080억원). → ③ 적중률",
-   ],["📉 2023년 낙관의 붕괴","2023년 리포트들의 LGES FY2025 영업이익 추정은 실제 대비 <b>+6.3조원</b> 과대 (대신·SK증권 7.5조 전망 vs 실제 1.3조). → ③ 적중률(빈티지)"],
-   ["↔ 2027년 전망 3.7배 격차","LGES 2027E 영업이익: LS증권 1.4조 vs 삼성증권 5.2조 — 같은 회사, 같은 달 리포트. → ② 점도표"],
-   ["⚠ SK온 정면 충돌","KB증권 '27년 흑자전환' vs LS증권 '적자 지속+추가 손상 리스크'. 파우치 M/S 28%→11%가 쟁점. → ② 점도표"]]
-  .forEach(([a,b])=>hi.append(el("div",{class:"qcard"},`<b>${a}</b><p>${b}</p>`)));
-  v.append(hi);
-  v.append(el("div",{class:"card"},`<h2>기준(Basis) 안내</h2><p class="note">3사 비교가 왜곡되지 않도록 적용한 정규화</p>
+  // 처음 보는 사람을 위한 탭 가이드
+  const g=el("div",{class:"card"},`<h2>이 대시보드 사용법</h2>${headMsg("K-배터리 3사에 대한 증권사들의 실적 추정·전망·시각을 한자리에 모아, 시장의 눈높이와 이견을 빠르게 파악하는 도구입니다.")}
+   <p class="note">아래 순서대로 보면 자연스럽습니다 — <b>현재 실적(①)</b> → <b>미래 전망 분포(②)</b> → <b>과거 적중 여부(③)</b> → <b>이슈·시각·수요(④⑤⑥)</b>.</p>`);
+  [["① 분기 실적","3사의 분기별 매출·영업이익 실적과, 미발표 분기의 컨센서스 전망(점선). <b>지금 실적이 어디에 와 있는지</b> 먼저 확인."],
+   ["② 점도표","증권사별 영업이익 <b>전망</b>이 얼마나 흩어져 있는지(FOMC식 분포). 같은 회사에 대한 시장의 <b>눈높이 차이와 최대 비관·낙관</b>을 봅니다."],
+   ["③ 적중률","이미 발표된 분기를 <b>되돌아보며</b>, 컨센서스가 실제와 얼마나 맞았는지(어닝 쇼크·서프라이즈). ②가 미래라면 ③은 과거 Look-back."],
+   ["④ 이슈별 View","LFP·ESS·AMPC·파우치 등 <b>이슈별</b>로 3사에 대한 증권사 시각(스탠스)을 매트릭스로 비교."],
+   ["⑤ View 변화","한 증권사의 시각이 <b>시간에 따라</b> 어떻게 바뀌었는지(목표가·의견·논조 추이) 추적."],
+   ["⑥ 시장 전망 View","산업 리포트 기반 EV·ESS <b>시장 수요</b> 전망과 그 변화."]]
+  .forEach(([a,b])=>g.append(el("div",{class:"qcard"},`<b>${a}</b><p>${b}</p>`)));
+  v.append(g);
+  v.append(el("div",{class:"card"},`<h2>비교 기준</h2>
    <p style="font-size:13px;color:var(--ink2)">${DATA.meta.note_basis}</p>`));
 }
 
@@ -464,56 +473,60 @@ function rF2(v){
 }
 
 /* ---------- F3 View 변화 ---------- */
-function spark(hist){
-  const pts=hist.filter(h=>h.target_price);if(pts.length<2)return"";
-  const w=120,h=30,vs=pts.map(p=>p.target_price),lo=Math.min(...vs),hi=Math.max(...vs);
-  const P=pts.map((p,i)=>`${lin(i,0,pts.length-1,2,w-2)},${lin(p.target_price,lo,hi,h-3,3)}`).join(" ");
-  return `<svg width="${w}" height="${h}"><polyline points="${P}" fill="none" stroke="var(--accent)" stroke-width="2"/></svg>`}
 function rF3(v){
-  const card=el("div",{class:"card"},`<h2>증권사별 View 변화 추적</h2><p class="note">맨 좌측 = 펀더멘털 View 변화(AMPC·출하량·가동·수요·수주 등, 날짜별 1줄) —
-   줄 앞 <b style="color:var(--pos)">▲</b>/<b style="color:var(--neg)">▼</b>/– = 직전 리포트 대비 논조 개선/악화/유지 (최초 리포트는 표식 없음).
-   논조 = 리포트 내 이슈별 스탠스 점수(-10~+10)의 평균 — 투자의견(매수 등)이 아니라 <b>이슈 코멘트의 방향과 확신도</b>를 채점한 값. 행 클릭 시 리포트별 이력</p>`);
+  const card=el("div",{class:"card"},`<h2>증권사별 View 변화 추적</h2>${headMsg("같은 회사라도 증권사별로 목표주가·투자의견·이슈 논조가 시점마다 어떻게 달라지는지 시간순으로 추적합니다.")}`);
   const ch=el("div",{class:"chips"});COMP.forEach(c=>{const b=el("button",{class:sel.f3===c?"on":""},c);
     b.onclick=()=>{sel.f3=c;render()};ch.append(b)});card.append(ch);
   const series=Object.entries(DATA.f3_views).filter(([k])=>k.endsWith("|"+sel.f3))
     .map(([k,v])=>({house:k.split("|")[0],hist:v})).sort((a,b)=>(b.hist.at(-1).target_price||0)-(a.hist.at(-1).target_price||0));
-  const tb=el("table");tb.append(el("tr",{},"<th>증권사</th><th>목표주가 추이</th><th style='text-align:right'>최근 목표가</th><th>의견 이력</th><th style='text-align:right'>논조</th>"));
+  const tb=el("table",{class:"f3tb"});tb.append(el("tr",{},"<th style='width:54%'>증권사 · 이슈 View 변화</th><th style='text-align:right'>목표가</th><th>의견</th><th style='text-align:right'>논조</th>"));
   series.forEach(s=>{
     const last=s.hist.at(-1);
-    const ops=s.hist.map(h=>`<span class="op ${h.opinion==="매수"?"buy":h.opinion==="매도"?"sell":"hold"}" title="${h.date}">${h.opinion||"–"}</span>`).join(" ");
+    const opCls=o=>o==="매수"?"buy":o==="매도"?"sell":"hold";
+    // 리포트 개수만큼 줄바꿈: 목표가(금액만)·의견 (시간순, 최신 굵게)
+    const tps=s.hist.map((h,i)=>`<span${i===s.hist.length-1?' style="font-weight:700"':''}>${h.target_price?fmtW(h.target_price):"–"}</span>`).join("<br>");
+    const ops=s.hist.map(h=>`<span class="op ${opCls(h.opinion)}">${h.opinion||"–"}</span>`).join("<br>");
     const tone=last.avg_stance!=null?(last.avg_stance>0?"+":"")+last.avg_stance:"–";
     const narr=DATA.f3_narratives?.[`${s.house}|${sel.f3}`];
-    // 직전 리포트 대비 논조(이슈 스탠스 평균) 변화 → 날짜 줄 앞 ▲/▼/– 표식
+    // 직전 리포트 대비 논조(이슈 스탠스 평균) 변화 → 날짜 칩 뒤 ▲/▼/– 표식
     const delta={};s.hist.forEach((h,i)=>{if(i===0||h.avg_stance==null||s.hist[i-1].avg_stance==null)return;
       delta[h.date]=h.avg_stance-s.hist[i-1].avg_stance});
-    const narrHtml=narr?narr.split("\n").map(line=>{
-      const m=line.match(/^(\d{4}-\d{2}-\d{2})/);const d=m?delta[m[1]]:undefined;
-      const mark=d===undefined?"":d>0.4?`<b style="color:var(--pos)">▲</b> `:d<-0.4?`<b style="color:var(--neg)">▼</b> `:`<span style="color:var(--muted)">–</span> `;
-      return mark+line}).join("<br>"):null;
-    const tr=el("tr",{style:"cursor:pointer"},`<td style="max-width:330px"><b>${s.house}</b> <span style="color:var(--muted);font-size:11px">${s.hist.length}건 · ~${last.date}</span>${narrHtml?`<br><span style="font-size:12px;color:var(--ink2)">${narrHtml}</span>`:""}</td>
-      <td>${spark(s.hist)}</td><td class="num">${last.target_price?fmtW(last.target_price):"–"}</td>
-      <td>${ops}</td><td class="num" style="color:${last.avg_stance>0?"var(--pos)":last.avg_stance<0?"var(--neg)":"var(--muted)"}">${tone}</td>`);
+    const narrHtml=narr?narr.split("\n").filter(Boolean).map(line=>{
+      const m=line.match(/^(\d{4}-\d{2}-\d{2}):?\s*(.*)$/);
+      if(!m)return `<div class="nline">${line}</div>`;
+      const d=delta[m[1]];
+      const mark=d===undefined?"":d>0.4?` <b style="color:var(--pos)">▲</b>`:d<-0.4?` <b style="color:var(--neg)">▼</b>`:` <span style="color:var(--muted)">–</span>`;
+      return `<div class="nline"><span class="datechip">${m[1].slice(2)}</span>${mark} ${m[2]}</div>`}).join(""):null;
+    const tr=el("tr",{style:"cursor:pointer"},`<td><b>${s.house}</b> <span style="color:var(--muted);font-size:11px">${s.hist.length}건</span>${narrHtml?`<div style="margin-top:4px">${narrHtml}</div>`:""}</td>
+      <td class="num" style="line-height:1.7">${tps}</td>
+      <td style="line-height:1.9">${ops}</td><td class="num" style="color:${last.avg_stance>0?"var(--pos)":last.avg_stance<0?"var(--neg)":"var(--muted)"}">${tone}</td>`);
     tr.onclick=()=>{const old=$("#f3side");old&&old.remove();
       const sd=el("div",{id:"f3side"},`<h2 style="font-size:14px;margin:14px 0 4px">${s.house} × ${sel.f3} 이력</h2>`);
       s.hist.slice().reverse().forEach(h=>sd.append(el("div",{class:"side"},
-        `<b>${h.date}</b> <span class="op ${h.opinion==="매수"?"buy":h.opinion==="매도"?"sell":"hold"}">${h.opinion||"–"}</span>
+        `<b>${h.date}</b> <span class="op ${opCls(h.opinion)}">${h.opinion||"–"}</span>
          ${h.target_price?fmtW(h.target_price):""} <span class="m">논조 ${h.avg_stance??"–"}</span><br><span class="m">${h.summary}…</span>`)));
       card.append(sd)};
     tb.append(tr)});
-  card.append(tb);v.append(card);
+  card.append(tb);
+  card.append(el("p",{class:"note"},"증권사 열 = 펀더멘털 이슈(AMPC·출하·가동·수요·수주) View의 날짜별 변화 · 날짜 뒤 <b style='color:var(--pos)'>▲</b>/<b style='color:var(--neg)'>▼</b>/– = 직전 리포트 대비 논조 개선/악화/유지 · 논조 = 이슈 스탠스(-10~+10) 평균(투자의견 아님) · 행 클릭 → 리포트별 상세."));
+  v.append(card);
 }
 
 /* ---------- F4 적중률 ---------- */
+const F4WHY={
+ "LGES":"다수 증권사가 예상하지 못한 GM 합작공장(얼티엄셀즈) 생산 일시중단으로 EV 출하가 급감했고, 북미 ESS 램프업 초기비용과 AMPC 감소가 겹쳐 컨센서스를 하회했습니다.",
+ "삼성SDI":"전력용·데이터센터향 ESS와 UPS/BBU 수요가 예상보다 강했고 미국 현지생산 ESS 판매가 늘며, 적자폭이 컨센서스 전망보다 작았습니다.",
+ "SK온":"국내 EV 판매 호조로 가동률이 개선되며 파우치 부진을 상쇄, 대체로 컨센서스 수준의 적자를 기록했습니다."};
 function rF4(v){
   const evs=DATA.f4_accuracy.events;
-  const card=el("div",{class:"card"},`<h2>컨센서스 적중률 — 1Q26 실적 이벤트</h2>
-   <p class="note">발표 직전 프리뷰 리포트의 영업이익 추정 vs 실제. 오차 = 추정 − 실제 (억원)</p>`);
+  const card=el("div",{class:"card"},`<h2>컨센서스 적중률 — 지난 분기 되돌아보기</h2>
+   <p class="note">② 점도표가 <b>미래</b> 전망의 분포라면, 여기는 이미 발표된 분기를 <b>되돌아보며(Look-back)</b> 발표 직전 컨센서스가 실제와 얼마나 맞았는지 봅니다.</p>`);
   const ch=el("div",{class:"chips"});evs.forEach((e,i)=>{const b=el("button",{class:sel.f4===i?"on":""},`${e.company} ${e.fy}.${e.period}`);
     b.onclick=()=>{sel.f4=i;render()};ch.append(b)});card.append(ch);
   const ev=evs[sel.f4],preds=ev.preds.filter(p=>p.op_err!=null).sort((a,b)=>Math.abs(a.op_err)-Math.abs(b.op_err));
-  const vcls=ev.verdict==="어닝 서프라이즈"?"buy":ev.verdict==="어닝 쇼크"?"sell":"hold";
-  card.append(el("p",{class:"note"},`실제 영업이익 <b>${fmt(ev.actual["영업이익"])}원</b> (${ev.announce_date} 발표) · 예측 ${preds.length}건`
-    +(ev.verdict?` · 프리뷰 컨센서스 중앙값 ${fmt(ev.consensus_median)}원, 실제가 ${ev.diff>0?"+":""}${fmt(ev.diff)}원 ${ev.diff>0?"상회":"하회"} → <span class="op ${vcls}">${ev.verdict}</span>`:"")));
+  const vcol=ev.verdict==="어닝 서프라이즈"?"var(--pos)":ev.verdict==="어닝 쇼크"?"var(--neg)":"var(--ink2)";
+  card.append(el("div",{},headMsg(`<b style="color:${vcol}">${ev.verdict}</b> · 실제 ${fmtA(ev.actual["영업이익"])} vs 프리뷰 컨센서스 중앙값 ${fmtA(ev.consensus_median)} (실제가 ${ev.diff>0?"+":""}${fmtA(ev.diff)} ${ev.diff>0?"상회":"하회"}) — ${F4WHY[ev.company]||""}`)).firstChild);
+  card.append(el("p",{class:"note",style:"margin-bottom:2px"},`<b>막대 = 추정 − 실제 (억원)</b> · <span style="color:var(--pos)">오른쪽(+) = 과대추정</span> · <span style="color:var(--neg)">왼쪽(−) = 과소추정</span> · 0에 가까울수록 정확 · ${ev.announce_date} 발표, 예측 ${preds.length}건`));
   const W=680,rowH=26,L=110,R=60,H=preds.length*rowH+30;
   const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%",style:"min-width:560px"});
   const mx=Math.max(...preds.map(p=>Math.abs(p.op_err)))*1.15;
@@ -524,33 +537,13 @@ function rF4(v){
     const w=Math.abs(X(p.op_err)-X(0));
     const bar=sv("rect",{x:Math.min(X(0),X(p.op_err)),y:y-7,width:Math.max(w,2),height:14,rx:4,
       fill:p.op_err>=0?"var(--pos)":"var(--neg)"});
-    bar.addEventListener("mousemove",e=>hover(e,`<b>${p.house}</b> ${p.date}<br>추정 ${fmt(p.op_est)} (${p.op_basis})<br>오차 ${p.op_err>0?"+":""}${fmt(p.op_err)}원`));
+    bar.addEventListener("mousemove",e=>hover(e,`<b>${p.house}</b> ${p.date}<br>추정 ${fmt(p.op_est)} (${p.op_basis})<br>추정−실제 ${p.op_err>0?"+":""}${fmt(p.op_err)}원`));
     bar.addEventListener("mouseleave",unhover);svg.append(bar);
     const vt=sv("text",{x:X(p.op_err)+(p.op_err>=0?5:-5),y:y+4,"text-anchor":p.op_err>=0?"start":"end"});
     vt.textContent=(p.op_err>0?"+":"")+Math.round(p.op_err*10).toLocaleString();svg.append(vt)});
   const z=sv("text",{x:X(0),y:H-8,"text-anchor":"middle"});z.textContent="0 = 정확";svg.append(z);
-  card.append(svg);v.append(card);
-  // 빈티지
-  const c2=el("div",{class:"card"},`<h2>장기 빈티지 — FY2025 전망은 얼마나 빗나갔나</h2>
-   <p class="note">각 리포트 발간 시점의 FY2025 영업이익 추정 vs 실제 (LGES 1,346 / 삼성SDI -1,722 십억원)</p>`);
-  const vt=DATA.f4_accuracy.fy2025_vintage;
-  const W2=680,H2=260,L2=64,T2=14,B2=30;
-  const s2=sv("svg",{viewBox:`0 0 ${W2} ${H2}`,width:"100%",style:"min-width:560px"});
-  const ds=vt.map(x=>new Date(x.date).getTime());
-  const d0=Math.min(...ds),d1=Math.max(...ds);
-  const errs=vt.map(x=>x.op_err);let lo2=Math.min(...errs,0),hi2=Math.max(...errs);
-  const X2=t2=>lin(t2,d0,d1,L2,W2-16),Y2=e2=>lin(e2,lo2,hi2,H2-B2,T2);
-  [0,3000,6000].filter(g=>g<=hi2).forEach(g=>axisY(s2,L2,W2-16,Y2(g),g?"+"+fmtA(g):"0"));
-  ["2023-07","2024-06","2025-06"].forEach(m=>{const t2=new Date(m).getTime();
-    if(t2>=d0&&t2<=d1){const tx=sv("text",{x:X2(t2),y:H2-8,"text-anchor":"middle"});tx.textContent=m;s2.append(tx)}});
-  vt.forEach(x=>{const col=CCOL[x.company];
-    const dot=sv("circle",{cx:X2(new Date(x.date).getTime()),cy:Y2(x.op_err),r:6,fill:col,stroke:"var(--surface)","stroke-width":2});
-    dot.addEventListener("mousemove",e=>hover(e,`<b>${x.house}</b> ${x.date} <i>(${x.src_type||"기업"}리포트)</i><br>${x.company} FY25 OP 추정 ${fmt(x.op_est)}원<br>오차 <b>${x.op_err>0?"+":""}${fmt(x.op_err)}원</b>`));
-    dot.addEventListener("mouseleave",unhover);s2.append(dot)});
-  c2.append(s2);
-  const lg=el("div",{class:"legend"});["LGES","삼성SDI"].forEach(c=>lg.append(el("span",{},`<i style="background:${CCOL[c]}"></i>${c}`)));
-  c2.append(lg,el("p",{class:"note"},"읽는 법: 0선에 가까울수록 정확. 2023년 발간 리포트들은 +5~6조원 과대추정 → 시간이 지나며 0선으로 수렴. 이 차트는 장기 추적을 위해 산업리포트의 3사 추정치도 포함(점 위에 출처 표기)."));
-  v.append(c2);
+  card.append(svg,el("p",{class:"note"},"프리뷰 = 발표 직전 리포트. 판정 임계 = 컨센서스 중앙값의 15% 또는 300억원 중 큰 값(초과 시 쇼크/서프라이즈)."));
+  v.append(card);
 }
 
 /* ---------- 스탠스 아웃라이어 (④ 이슈별 View 하단 카드) ---------- */

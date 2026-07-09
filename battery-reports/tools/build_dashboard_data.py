@@ -532,6 +532,7 @@ f7 = {"regimes": regimes, "demand": demand_rows, "themes": theme_rows,
       "n_reports": len(ind_reports)}
 
 data = {"meta": {"built_from": "battery-reports index v2", "n_reports": len(reports),
+                 "n_industry": sum(1 for r in reports if r.get("report_type") == "산업"),
                  "n_estimates": len(est), "houses": sorted({r['house'] for r in reports}),
                  "period": f"{min(r['date'] for r in reports)} ~ {max(r['date'] for r in reports)}",
                  "note_basis": "영업이익 비교는 AMPC 포함(incl) 기준 통일. excl만 있는 경우 AMPC 가산 파생(derived). LGES 매출은 1Q26부터 AMPC 병합 표시(IR 재작성 기준)."},
