@@ -41,7 +41,8 @@ nav button.on{background:var(--ink);color:var(--page);border-color:var(--ink)}
 .datechip{display:inline-block;background:var(--chip);color:var(--ink2);font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:8px;margin-right:2px;white-space:nowrap;vertical-align:middle}
 .nline{margin:5px 0;font-size:12px;color:var(--ink2);line-height:1.55}
 ul.outsents{margin:7px 0 0;padding-left:16px}
-ul.outsents li{font-size:12px;line-height:1.55;margin:3px 0;color:var(--ink2)}
+ul.outsents li{font-size:12px;line-height:1.6;margin:5px 0;color:var(--ink2)}
+.stbadge{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border:1px solid;border-radius:8px;margin-right:3px;white-space:nowrap;vertical-align:middle}
 tr.catrow td{background:var(--chip);font-weight:700;font-size:11.5px;color:var(--ink2);padding:5px 10px;letter-spacing:.03em}
 table.f3tb{table-layout:fixed}
 table.f3tb td{word-break:break-word}
@@ -455,16 +456,18 @@ function segDetailCard(v,metric,ckey,okey,title,headMap){
 }
 
 /* ---------- F2 스탠스 매트릭스 ---------- */
-// 이슈 카테고리 (17개 이슈 → 4개 그룹)
+// 이슈 카테고리 (정책/보조금·EV·ESS·제품·기술). 밸류에이션은 제외, 북미ESS는 ESS로 통합(빌드 alias)
 const ISSUE_CAT={
-  "북미수요":"수요·경쟁","유럽수요":"수요·경쟁","판매량":"수요·경쟁","중국경쟁":"수요·경쟁","관세":"수요·경쟁",
-  "ESS":"ESS·AMPC","북미ESS":"ESS·AMPC","AMPC":"ESS·AMPC",
-  "LFP":"제품·기술","46파이":"제품·기술","전고체":"제품·기술","소형전지":"제품·기술","파우치":"제품·기술","수율":"제품·기술","로봇":"제품·기술",
-  "북미CAPEX":"투자·밸류","밸류에이션":"투자·밸류"};
-const CAT_ORDER=["수요·경쟁","ESS·AMPC","제품·기술","투자·밸류"];
+  "AMPC":"정책/보조금","관세":"정책/보조금","북미CAPEX":"정책/보조금",
+  "북미수요":"EV","유럽수요":"EV","판매량":"EV","중국경쟁":"EV",
+  "ESS":"ESS",
+  "LFP":"제품·기술","46파이":"제품·기술","전고체":"제품·기술","소형전지":"제품·기술","파우치":"제품·기술","수율":"제품·기술","로봇":"제품·기술"};
+const CAT_ORDER=["정책/보조금","EV","ESS","제품·기술"];
+// 카테고리 맥락에 맞춘 표시 라벨
+const ISSUE_LBL={"북미수요":"북미 EV","유럽수요":"유럽 EV","판매량":"판매량","중국경쟁":"중국 경쟁","북미CAPEX":"북미 증설"};
 function rF2(v){
   const card=el("div",{class:"card"},`<h2>이슈별 3사 View 매트릭스</h2>
-    <p class="note">셀 = 하우스당 최신 리포트 1건 기준 스탠스 <b>중앙값</b>(평균 병기), <b>-10 매우부정 ~ +10 매우긍정</b>. 17개 이슈를 4개 카테고리로 묶었으며, <b>셀 클릭 → 점수 분포와 긍정·중립·부정 구분 근거</b>.</p>`);
+    <p class="note">셀 = 하우스당 최신 리포트 1건 기준 스탠스 <b>중앙값</b>(평균 병기), <b>-10 매우부정 ~ +10 매우긍정</b>. 이슈를 <b>정책/보조금·EV·ESS·제품·기술</b> 4개로 묶었으며, <b>셀 클릭 → 점수 분포와 긍정·중립·부정 구분 근거</b>.</p>`);
   const rows={};DATA.f2_stance.forEach(r=>{(rows[r.issue]??={}).c=(rows[r.issue].c||0)+r.n;rows[r.issue][r.company]=r});
   const tb=el("table");tb.append(el("tr",{},`<th>이슈</th>${COMP.map(c=>`<th>${c}</th>`).join("")}`));
   CAT_ORDER.forEach(cat=>{
@@ -472,7 +475,7 @@ function rF2(v){
     if(!catIssues.length)return;
     tb.append(el("tr",{class:"catrow"},`<td colspan="${COMP.length+1}">${cat}</td>`));
     catIssues.forEach(iss=>{
-      const tr=el("tr");tr.append(el("td",{},`<b>${iss}</b>`));
+      const tr=el("tr");tr.append(el("td",{},`<b>${ISSUE_LBL[iss]||iss}</b>`));
       COMP.forEach(c=>{const r=rows[iss][c];
         const td=el("td",{class:r?"cell":"",style:`background:${r?divCol(r.median_recent):"transparent"};text-align:center`},
           r?`<b>${r.median_recent>0?"+":""}${r.median_recent}</b><br><span style="font-size:10.5px;color:var(--ink2)">평균 ${r.mean_recent>0?"+":""}${r.mean_recent} · ${r.n_houses}사</span>`:"·");
@@ -644,16 +647,18 @@ function outlierPanel(card,company,period){
   const box=el("div",{style:"margin-top:16px;border-top:1px solid var(--border);padding-top:14px"},
     `<h2 style="font-size:14px;margin:0 0 4px">아웃라이어 분석 — ${company} ${lab}</h2>`);
   box.append(el("div",{},headMsg(F6GAP[company]||"")).firstChild);
-  box.append(el("p",{class:"note"},`컨센서스 중앙값 ${fmtA(g.median)}원 · ${g.n_houses}개사. <b>최저·최고 추정</b> = 영업이익 <b>추정치</b>가 가장 낮은/높은 하우스. 아래 근거는 리포트 전체 요약으로, 논조 자체는 추정치 방향과 다를 수 있다.`));
+  box.append(el("p",{class:"note"},`컨센서스 중앙값 ${fmtA(g.median)}원 · ${g.n_houses}개사. <b>최저·최고 추정</b> = 영업이익 <b>추정치</b>가 가장 낮은/높은 하우스. 아래는 그 하우스의 <b>이슈별 논조(스탠스)</b> — 확신도 강한 순.`));
   const order={"최저 추정":0,"최고 추정":1};
   g.houses.filter(h=>h.tag==="최저 추정"||h.tag==="최고 추정").sort((a,b)=>order[a.tag]-order[b.tag]).forEach(h=>{
     const col=OUTCOL[h.tag];
-    const sents=(h.summary||"").split(/(?<=다\.)\s+/).map(s=>s.trim()).filter(Boolean);
-    const bullets=sents.length?sents.map(s=>`<li>${s}</li>`).join(""):`<li>(리포트 요약 없음)</li>`;
+    const st=h.stances||[];
+    const rows=st.length?st.map(s=>{const sc=s.score>0?"var(--pos)":s.score<0?"var(--neg)":"var(--muted)";
+      return `<li><span class="stbadge" style="color:${sc};border-color:${sc}">${s.issue} ${s.score>0?"+":""}${s.score}</span> ${s.summary}</li>`}).join("")
+      :`<li>(이슈 스탠스 없음)</li>`;
     box.append(el("div",{class:"side",style:`border-left:3px solid ${col};padding-left:11px;margin-bottom:10px`},
       `<b style="color:${col}">${h.tag}</b> · <b>${h.house}</b>
        <span class="m">${h.date} · OP ${fmt(h.op)}원 · 중앙값 대비 ${h.dev_from_median>0?"+":""}${fmt(h.dev_from_median)}</span>
-       <ul class="outsents">${bullets}</ul>`))});
+       <ul class="outsents">${rows}</ul>`))});
   card.append(box);
 }
 

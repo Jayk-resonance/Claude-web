@@ -135,7 +135,7 @@ f1 = {"actuals_grid": {f"{k[0]}|{k[1]}|{k[2]}": v for k, v in actual_grid().item
       "narratives": narratives.get("f1", {})}
 
 # ---------- F2: 이슈별 스탠스 매트릭스 ----------
-ISSUE_ALIAS = {"배터리판매량":"판매량","북미EV":"북미수요","유럽EV":"유럽수요"}
+ISSUE_ALIAS = {"배터리판매량":"판매량","북미EV":"북미수요","유럽EV":"유럽수요","북미ESS":"ESS"}
 mat = collections.defaultdict(list)
 for s in stances:
     comp = s["company"]
@@ -279,6 +279,14 @@ for comp, seg in [("LGES","전사"),("삼성SDI","전사"),("SK온","배터리�
                     break
             for v in picks:
                 v["summary"] = (rmeta.get(v["report_id"], {}).get("summary") or "")
+                # 논조 근거: 해당 리포트의 이슈별 스탠스(확신도 강한 순 상위 4개)
+                v["stances"] = sorted(
+                    [{"issue": ISSUE_ALIAS.get(s["issue"], s["issue"]),
+                      "score": float(s["stance_score"]) if s["stance_score"] else 0,
+                      "summary": s["summary"]}
+                     for s in stances if s["report_id"] == v["report_id"]
+                     and s["company"] == comp],
+                    key=lambda x: -abs(x["score"]))[:4]
                 v["pick"] = True
             f5["estimate_outliers"].append(
                 {"company": comp, "fy": fy, "period": period, "median": med,
