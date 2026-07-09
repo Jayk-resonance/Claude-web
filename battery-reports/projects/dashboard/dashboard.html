@@ -205,17 +205,23 @@ function lineChart(box,title,note,metric){
   d.append(tb);card.append(d);box.append(card);
 }
 function rF1(v){
-  lineChart(v,"1) 분기 매출 (전사, AMPC 제외 기준)","LGES는 재작성 전(AMPC 제외) 매출 사용 — 3사 비교 왜곡 방지 · 26.2Q(E)부터 점선 = 컨센서스 중앙값","매출");
-  segDetailCard(v,"매출","f1sr","f1srO","2) 사업부문별 분기 매출");
-  lineChart(v,"3) 분기 영업이익 (전사, AMPC 포함)","LGES·삼성SDI=회사 IR 확정치 / SK온 배터리=애널리스트 인용 중앙값 · 26.2Q(E)부터 점선 = 컨센서스 중앙값(② 점도표와 동일값)","영업이익");
-  segDetailCard(v,"영업이익","f1so","f1soO","4) 사업부문별 분기 영업이익");
+  lineChart(v,"1-1) 분기 매출 (전사, AMPC 제외 기준)","LGES는 재작성 전(AMPC 제외) 매출 사용 — 3사 비교 왜곡 방지 · 26.2Q(E)부터 점선 = 컨센서스 중앙값","매출");
+  segDetailCard(v,"매출","f1sr","f1srO","1-2) 사업부문별 분기 매출");
+  lineChart(v,"2-1) 분기 영업이익 (전사, AMPC 포함)","LGES·삼성SDI=회사 IR 확정치 / SK온 배터리=애널리스트 인용 중앙값 · 26.2Q(E)부터 점선 = 컨센서스 중앙값(② 점도표와 동일값)","영업이익");
+  segDetailCard(v,"영업이익","f1so","f1soO","2-2) 사업부문별 분기 영업이익");
 
-  // 사업부문별 증권사 컨센서스 (회사 탭)
+  // [참고] 증권사 추정 상세 (회사 탭) — 탭을 눌러 활성화
   const segAll=DATA.f1_quarterly.seg_consensus?.[sel.f1c]||{};
   const segPeriods=Object.keys(segAll);
   {
-    const sc=el("div",{class:"card"},`<h2>사업부문별 증권사 컨센서스</h2>
-      <p class="note">중앙값(평균) 기준, 억원. 부문 영업이익은 <b>AMPC 제외(excl)</b>로 통일 — 분리 불가 리포트는 제외(n에서 빠짐). 하우스당 최신 리포트 1건. <b>셀 클릭 → 증권사별 추정치</b></p>`);
+    const sc=el("div",{class:"card"});
+    const tg=el("button",{class:"chips-toggle",style:"border:1px solid var(--border);background:var(--chip);color:var(--ink2);padding:6px 14px;border-radius:14px;font:600 12.5px system-ui;cursor:pointer"},
+      (sel.f1segO?"▾ ":"▸ ")+"[참고] 증권사 추정 상세 (탭을 눌러 "+(sel.f1segO?"접기":"펼치기")+")");
+    tg.onclick=()=>{sel.f1segO=!sel.f1segO;render()};
+    sc.append(tg);
+    if(!sel.f1segO){v.append(sc);}
+    else{
+    sc.append(el("p",{class:"note",style:"margin-top:12px"},"중앙값(평균) 기준, 억원. 부문 영업이익은 <b>AMPC 제외(excl)</b>로 통일 — 분리 불가 리포트는 제외(n에서 빠짐). 하우스당 최신 리포트 1건. <b>셀 클릭 → 증권사별 추정치</b>"));
     const cch=el("div",{class:"chips"});COMP.forEach(c=>{const b=el("button",{class:sel.f1c===c?"on":""},c);
       b.onclick=()=>{sel.f1c=c;sel.f1p=null;render()};cch.append(b)});sc.append(cch);
     if(!segPeriods.length){sc.append(el("p",{class:"note"},"이 회사는 부문별 컨센서스 데이터가 없습니다."));v.append(sc);}
@@ -248,13 +254,23 @@ function rF1(v){
       tb.append(tr)});
     sc.append(tb);v.append(sc);
     }
+    }
   }
 
-  const card=el("div",{class:"card"},`<h2>분기별 손익 변화의 원인 (경영층 브리핑)</h2><p class="note">회사 IR·콘퍼런스콜 발언과 리포트 근거 기반, 출처 표기</p>`);
+  // QoQ 손익 차이분석 — 2026 상단 상시 노출, 2025는 탭으로 활성화
+  const card=el("div",{class:"card"},`<h2>QoQ 손익 차이분석</h2><p class="note">회사 IR·콘퍼런스콜 발언과 리포트 근거 기반, 출처 표기</p>`);
   const ch=el("div",{class:"chips"});COMP.forEach(c=>{const b=el("button",{class:sel.f1===c?"on":""},c);
     b.onclick=()=>{sel.f1=c;render()};ch.append(b)});card.append(ch);
   const n=DATA.f1_quarterly.narratives[sel.f1]||{};
-  Object.entries(n).forEach(([q,txt])=>card.append(el("div",{class:"qcard"},`<b>${q.replace("-"," ")}</b><p>${txt.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}</p>`)));
+  const qcard=(q,txt)=>el("div",{class:"qcard"},`<b>${q.replace("-"," ")}</b><p>${txt.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}</p>`);
+  const ent=Object.entries(n), y26=ent.filter(([q])=>!q.startsWith("2025")), y25=ent.filter(([q])=>q.startsWith("2025"));
+  y26.forEach(([q,txt])=>card.append(qcard(q,txt)));
+  if(y25.length){
+    const tg=el("button",{class:"chips-toggle",style:"margin-top:8px;border:1px solid var(--border);background:var(--chip);color:var(--ink2);padding:6px 14px;border-radius:14px;font:600 12.5px system-ui;cursor:pointer"},
+      (sel.f1nar25?"▾ ":"▸ ")+"2025년 분기별 브리핑 (탭을 눌러 "+(sel.f1nar25?"접기":"펼치기")+")");
+    tg.onclick=()=>{sel.f1nar25=!sel.f1nar25;render()};card.append(tg);
+    if(sel.f1nar25)y25.forEach(([q,txt])=>card.append(qcard(q,txt)));
+  }
   v.append(card);
 }
 
@@ -292,12 +308,7 @@ function segSeries(comp,metric){
   return {out,labels:Q.map(([fy,p],i)=>`${String(fy).slice(2)}.${p}${i>=5?"E":""}`),ampcDetail};
 }
 function segDetailCard(v,metric,ckey,okey,title){
-  const card=el("div",{class:"card"});
-  const tg=el("button",{class:"chips-toggle",style:"border:1px solid var(--border);background:var(--chip);color:var(--ink2);padding:6px 14px;border-radius:14px;font:600 12.5px system-ui;cursor:pointer"},
-    (sel[okey]?"▾ ":"▸ ")+title+" (탭을 눌러 "+(sel[okey]?"접기":"펼치기")+")");
-  tg.onclick=()=>{sel[okey]=!sel[okey];render()};
-  card.append(tg);
-  if(!sel[okey]){v.append(card);return}
+  const card=el("div",{class:"card"},`<h2>${title}</h2>`);
   const comp=sel[ckey]||"LGES";
   const cch=el("div",{class:"chips",style:"margin-top:12px"});
   COMP.forEach(c=>{const b=el("button",{class:comp===c?"on":""},c);
