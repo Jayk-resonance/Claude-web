@@ -570,6 +570,60 @@ def total_pages():
             return None
     return tot or None
 
+# ---------- SEARCH: 키워드 검색 인덱스 (A층 인덱스 요약 + B층 MD 본문) ----------
+def build_search():
+    import glob as g, re as _re
+    rows = []
+
+    def add(kind, rid, date, house, ctx, sub, text, page=None):
+        text = (text or "").strip()
+        if text:
+            rows.append({"k": kind, "r": rid, "d": date or "", "h": house or "",
+                         "c": ctx or "", "i": sub or "", "p": page or "", "x": text})
+
+    # A층: 인덱스의 텍스트 필드 (회사·이슈·페이지 귀속)
+    for s in stances:
+        add("스탠스", s["report_id"], s["date"], s["house"], s["company"],
+            ISSUE_ALIAS.get(s["issue"], s["issue"]), s["summary"], s.get("source_page"))
+    for dr in drivers:
+        add("드라이버", dr.get("source_file", ""), f'{dr["fy"]}.{dr["period"]}', "회사 IR",
+            dr["company"], dr.get("segment_std", ""), dr["summary"], dr.get("source_page"))
+    for iv in iviews:
+        add("산업전망", iv["report_id"], iv["date"], iv["house"], iv.get("scope", ""),
+            iv.get("metric", ""), iv["summary"], iv.get("source_page"))
+    for th in csv.DictReader(open(f"{IDX}/themes.csv", encoding="utf-8")):
+        txt = " / ".join(x for x in [th.get("summary"), th.get("bull"), th.get("bear")] if x)
+        add("테마", th["report_id"], th["date"], th["house"], "산업", th["theme"],
+            txt, th.get("source_page"))
+    seen_basis = set()
+    for dfr in csv.DictReader(open(f"{IDX}/demand_forecasts.csv", encoding="utf-8")):
+        for fld in ("basis", "scope_note"):
+            t = (dfr.get(fld) or "").strip()
+            if not t or (dfr["report_id"], t) in seen_basis:
+                continue
+            seen_basis.add((dfr["report_id"], t))
+            add("수요전망", dfr["report_id"], dfr["date"], dfr["house"],
+                f'{dfr["region"]} {dfr["application"]}', dfr["metric"], t, dfr.get("source_page"))
+    for r in reports:
+        add("리포트 요약", r["report_id"], r["date"], r["house"], r["coverage"],
+            r.get("report_type", ""), r.get("summary"))
+    # B층: 표준 MD 본문 (frontmatter 제외, '## 섹션' 단위)
+    for p in sorted(g.glob(os.path.join(ROOT, "reports", "*", "*.md"))):
+        t = open(p, encoding="utf-8").read()
+        parts = t.split("---", 2)
+        if len(parts) < 3:
+            continue
+        rid = os.path.basename(p)[:-3]
+        rm = rmeta.get(rid, {})
+        for m in _re.finditer(r"^## (.+?)\n(.*?)(?=\n## |\Z)", parts[2], _re.S | _re.M):
+            sec = m.group(1).strip()
+            txt = _re.sub(r"<!--.*?-->", "", m.group(2), flags=_re.S).strip()
+            if txt:
+                add("본문", rid, rm.get("date", ""), rm.get("house", ""),
+                    rm.get("coverage", ""), sec, txt)
+    return rows
+
+
 data = {"meta": {"built_from": "battery-reports index v2", "n_reports": len(reports),
                  "n_industry": sum(1 for r in reports if r.get("report_type") == "산업"),
                  "n_pages": total_pages(),
@@ -577,7 +631,8 @@ data = {"meta": {"built_from": "battery-reports index v2", "n_reports": len(repo
                  "period": f"{min(r['date'] for r in reports)} ~ {max(r['date'] for r in reports)}",
                  "note_basis": "영업이익 비교는 AMPC 포함(incl) 기준 통일. excl만 있는 경우 AMPC 가산 파생(derived). LGES 매출은 1Q26부터 AMPC 병합 표시(IR 재작성 기준)."},
         "f1_quarterly": f1, "f2_stance": f2, "f3_views": f3,
-        "f3_narratives": f3_narr, "f4_accuracy": f4, "f5_outliers": f5, "f6_dotplots": f6, "f7_industry": f7}
+        "f3_narratives": f3_narr, "f4_accuracy": f4, "f5_outliers": f5, "f6_dotplots": f6, "f7_industry": f7,
+        "search": build_search()}
 json.dump(data, open(f"{OUT}/data.json", "w", encoding="utf-8"), ensure_ascii=False)
 print(f"data.json 생성: {os.path.getsize(f'{OUT}/data.json')//1024}KB")
 print(f"f2 {len(f2)}셀 / f3 {len(f3)}시리즈 / f4 이벤트 {len(f4['events'])}+빈티지 {len(f4['fy2025_vintage'])}행"

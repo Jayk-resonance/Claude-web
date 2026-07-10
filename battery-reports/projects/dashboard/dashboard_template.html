@@ -44,6 +44,7 @@ ul.outsents{margin:7px 0 0;padding-left:16px}
 ul.outsents li{font-size:12px;line-height:1.6;margin:5px 0;color:var(--ink2)}
 .stbadge{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border:1px solid;border-radius:8px;margin-right:3px;white-space:nowrap;vertical-align:middle}
 button.lnk{background:none;border:none;color:var(--ink2);font:600 11.5px system-ui;cursor:pointer;padding:2px 0 6px;display:block}
+mark{background:#f7dd72;color:#111;padding:0 2px;border-radius:3px}
 tr.catrow td{background:var(--chip);font-weight:700;font-size:11.5px;color:var(--ink2);padding:5px 10px;letter-spacing:.03em}
 table.f3tb{table-layout:fixed}
 table.f3tb td{word-break:break-word}
@@ -120,7 +121,7 @@ function axisY(g,x0,x1,y,v){g.append(sv("line",{x1:x0,x2:x1,y1:y,y2:y,stroke:"va
 
 /* ---------- 탭 ---------- */
 const TABS=[["overview","개요"],["f1","① 분기 실적"],["f6","② 점도표"],["f4","③ 적중률"],
- ["f2","④ 이슈별 3사 Position"],["f3","⑤ View 변화"],["f7","⑥ 시장 전망 View"]];
+ ["f2","④ 이슈별 3사 Position"],["f3","⑤ View 변화"],["f7","⑥ 시장 전망 View"],["srch","🔍 검색"]];
 let tab="overview", sel={f1:"LGES",f1c:"LGES",f1p:null,f1sr:"LGES",f1so:"LGES",f1srO:false,f1soO:false,f3:"LGES",f4:0,f6:"LGES",f6mode:"latest",f7s:null};
 function render(){
   $("#subline").textContent=`리포트 ${DATA.meta.n_reports}건 (산업 ${DATA.meta.n_industry||0}건 포함) · ${DATA.meta.houses.length}개 증권사 · ${DATA.meta.period}`;
@@ -128,7 +129,7 @@ function render(){
   TABS.forEach(([id,name])=>{const b=el("button",{class:tab===id?"on":""},name);
     b.onclick=()=>{tab=id;render()};nav.append(b)});
   const v=$("#view");v.innerHTML="";
-  ({overview:rOver,f1:rF1,f2:rF2,f3:rF3,f4:rF4,f6:rF6,f7:rF7})[tab](v);
+  ({overview:rOver,f1:rF1,f2:rF2,f3:rF3,f4:rF4,f6:rF6,f7:rF7,srch:rSearch})[tab](v);
 }
 
 /* ---------- 개요 ---------- */
@@ -149,7 +150,8 @@ function rOver(v){
    ["③ 적중률","발표된 분기에서 컨센서스의 실제 대비 정확도(어닝 쇼크·서프라이즈)와 <b>증권사별 추정 정확도</b>를 검증한다. ②가 미래 전망이라면 ③은 과거 실적 대비 검증에 해당한다."],
    ["④ 이슈별 3사 Position","LFP·ESS·AMPC·파우치 등 <b>이슈별</b>로 3사에 대한 증권사 시각(스탠스)을 히트맵으로 비교한다."],
    ["⑤ View 변화","증권사별 시각의 <b>시계열 변화</b>(목표주가·투자의견·논조)를 추적한다."],
-   ["⑥ 시장 전망 View","산업 리포트 기반 EV·ESS <b>시장 수요</b> 전망과 그 변화를 정리한다."]]
+   ["⑥ 시장 전망 View","산업 리포트 기반 EV·ESS <b>시장 수요</b> 전망과 그 변화를 정리한다."],
+   ["🔍 검색","<b>키워드</b>로 전체 DB(이슈 스탠스·테마·수요 전망·MD 본문)를 검색하고 원문 페이지까지 추적한다."]]
   .forEach(([a,b])=>g.append(el("div",{class:"qcard"},`<b>${a}</b><p>${b}</p>`)));
   v.append(g);
   v.append(el("div",{class:"card"},`<h2>비교 기준</h2>
@@ -597,6 +599,51 @@ function rF4(v){
   const z=sv("text",{x:X(0),y:H-8,"text-anchor":"middle"});z.textContent="0 = 정확";svg.append(z);
   card.append(svg,el("p",{class:"note"},"프리뷰 = 발표 직전 리포트. 판정 임계 = 컨센서스 중앙값의 15% 또는 300억원 중 큰 값(초과 시 쇼크/서프라이즈)."));
   v.append(card);
+}
+
+/* ---------- 🔍 키워드 검색 (A층 인덱스 요약 + B층 MD 본문) ---------- */
+function rSearch(v){
+  const card=el("div",{class:"card"},`<h2>키워드 검색</h2>${headMsg("전체 리포트 DB — 이슈 스탠스·테마·수요 전망·산업 전망·드라이버·리포트 요약(A층)과 표준 MD 본문(B층) — 에서 키워드를 검색한다.")}
+   <p class="note">여러 단어는 공백으로 구분 — 모두 포함(AND) 기준, 영문 대소문자 무시. 결과는 최신순 · 최대 300건. 모든 결과는 리포트·페이지로 역추적 가능.</p>`);
+  const inp=el("input",{type:"search",placeholder:"예: 보상금 · 46파이 수주 · 가동률 · 전고체…",value:sel.q||"",
+    style:"width:100%;max-width:540px;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font:500 14px system-ui;outline:none"});
+  const KINDS=["전체","스탠스","본문","테마","수요전망","산업전망","드라이버","리포트 요약"];
+  const KCOL={"스탠스":"var(--lges)","본문":"var(--ink2)","테마":"#8d84c9","수요전망":"#1baf7a","산업전망":"#eda100","드라이버":"#e87ba4","리포트 요약":"var(--muted)"};
+  sel.qk??="전체";
+  const kch=el("div",{class:"chips",style:"margin-top:10px"});
+  KINDS.forEach(k=>{const b=el("button",{class:sel.qk===k?"on":""},k);b.onclick=()=>{sel.qk=k;doSearch()};kch.append(b)});
+  const res=el("div",{style:"margin-top:12px"});
+  const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  function doSearch(){
+    [...kch.children].forEach((b,i2)=>b.classList.toggle("on",KINDS[i2]===sel.qk));
+    res.innerHTML="";
+    const q=(sel.q||"").trim();
+    if(q.length<2){res.append(el("p",{class:"note"},"두 글자 이상 입력하면 검색됩니다."));return}
+    const tl=q.split(/\s+/).filter(Boolean).map(t=>t.toLowerCase());
+    const hay=r=>(r.x+" "+r.c+" "+r.i+" "+r.h).toLowerCase();
+    let hits=DATA.search.filter(r=>(sel.qk==="전체"||r.k===sel.qk)&&tl.every(t=>hay(r).includes(t)));
+    hits.sort((a,b)=>(b.d||"").localeCompare(a.d||""));
+    const total=hits.length;hits=hits.slice(0,300);
+    res.append(el("p",{class:"note"},`<b>${total}건</b>${total>300?" — 상위 300건 표시":""}`));
+    hits.forEach(r=>{
+      const xl=r.x.toLowerCase();let idx=-1;
+      for(const t of tl){const j=xl.indexOf(t);if(j>=0){idx=j;break}}
+      let snip=r.x;
+      if(r.x.length>240){const s0=idx>=0?Math.max(0,idx-70):0;
+        snip=(s0>0?"…":"")+r.x.slice(s0,s0+240)+(s0+240<r.x.length?"…":"")}
+      let html=esc(snip);
+      tl.forEach(t=>{html=html.replace(new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"gi"),m=>`<mark>${m}</mark>`)});
+      const col=KCOL[r.k]||"var(--border)";
+      res.append(el("div",{class:"side",style:`border-left:3px solid ${col}`},
+        `<b>${esc(r.h||"–")}</b> <span class="m">${r.d||""}</span> <span class="stbadge" style="color:${col};border-color:${col}">${r.k}</span>`
+        +(r.c?` <span class="m">· ${esc(String(r.c))}</span>`:"")+(r.i?`<span class="m"> · ${esc(String(r.i))}</span>`:"")
+        +(r.p?`<span class="m"> · p.${esc(String(r.p))}</span>`:"")
+        +`<br><span style="font-size:12.5px;line-height:1.65">${html}</span>`));
+    });
+  }
+  let tmr;inp.addEventListener("input",()=>{sel.q=inp.value;clearTimeout(tmr);tmr=setTimeout(doSearch,180)});
+  card.append(inp,kch,res);v.append(card);
+  if(sel.q)doSearch();
 }
 
 /* ---------- 점도표 (FOMC 스타일) ---------- */
