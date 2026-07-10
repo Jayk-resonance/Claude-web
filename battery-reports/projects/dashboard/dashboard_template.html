@@ -485,7 +485,6 @@ function rF2(v){
       tb.append(tr)});
   });
   card.append(tb);v.append(card);
-  stanceOutlierCard(v,rows);
 }
 // 셀 클릭: 점수 분포 strip + 긍정/중립/부정 구분 근거
 function showF2(card,iss,c,r){
@@ -594,22 +593,6 @@ function rF4(v){
   v.append(card);
 }
 
-/* ---------- 아웃라이어 (④ 이슈별 3사 Position 하단 카드) — 히트맵과 연동 ---------- */
-function stanceOutlierCard(v,rows){
-  const c2=el("div",{class:"card"},`<h2>아웃라이어 — 소수 의견</h2><p class="note">2026년 스탠스가 이슈 중앙값과 ±5 이상 벌어진 콜. <b>항목 클릭 → 히트맵 셀의 점수 분포·근거</b>(분포에서 <span style="color:var(--muted)">회색 점</span>이 그 아웃라이어).</p>`);
-  const chipsWrap=el("div",{class:"chips"});
-  DATA.f5_outliers.stance_outliers.filter(o=>ISSUE_CAT[o.issue]).slice().sort((a,b)=>b.outliers.length-a.outliers.length).forEach(o=>{
-    const lbl=ISSUE_LBL[o.issue]||o.issue;
-    const b=el("button",{},`${o.company}·${lbl} <span style="opacity:.7">(${o.outliers.length})</span>`);
-    b.onclick=()=>{[...chipsWrap.children].forEach(c=>c.classList.remove("on"));b.classList.add("on");
-      const r=rows[o.issue]&&rows[o.issue][o.company];
-      if(r){showF2(c2,lbl,o.company,r);}
-      else{const old=$("#f2side");old&&old.remove();
-        const s=el("div",{id:"f2side"});o.outliers.forEach(i=>s.append(el("div",{class:"side"},
-          `<b>${i.house}</b> <span class="m">${i.date} · ${i.score>0?"+":""}${i.score}</span><br>${i.summary}`)));c2.append(s);}};
-    chipsWrap.append(b)});
-  c2.append(chipsWrap);v.append(c2);
-}
 /* ---------- 점도표 (FOMC 스타일) ---------- */
 const OUTCOL={"최저 추정":"var(--neg)","최고 추정":"var(--pos)"};
 // 최저·최고 추정 간 격차의 핵심 가정 차이 (하우스별 요약이 아닌 구조적 원인)
