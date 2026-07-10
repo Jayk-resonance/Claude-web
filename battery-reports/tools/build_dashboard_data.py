@@ -143,6 +143,9 @@ for s in stances:
     if comp not in COMPANIES or not rm_s or rm_s.get("report_type") != "기업":
         continue
     issue = ISSUE_ALIAS.get(s["issue"], s["issue"])
+    # 북미 증설은 ESS/EV 내용이 혼재 → 요약 키워드로 분리(ESS 언급 시 ESS, 아니면 EV)
+    if issue == "북미CAPEX":
+        issue = "북미증설(ESS)" if "ESS" in (s["summary"] or "") else "북미증설(EV)"
     mat[(issue, comp)].append({"house": s["house"], "date": s["date"],
                                "score": float(s["stance_score"]) if s["stance_score"] else 0,
                                "summary": s["summary"], "report_id": s["report_id"]})
