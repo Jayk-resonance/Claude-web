@@ -43,6 +43,7 @@ nav button.on{background:var(--ink);color:var(--page);border-color:var(--ink)}
 ul.outsents{margin:7px 0 0;padding-left:16px}
 ul.outsents li{font-size:12px;line-height:1.6;margin:5px 0;color:var(--ink2)}
 .stbadge{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border:1px solid;border-radius:8px;margin-right:3px;white-space:nowrap;vertical-align:middle}
+button.lnk{background:none;border:none;color:var(--ink2);font:600 11.5px system-ui;cursor:pointer;padding:2px 0 6px;display:block}
 tr.catrow td{background:var(--chip);font-weight:700;font-size:11.5px;color:var(--ink2);padding:5px 10px;letter-spacing:.03em}
 table.f3tb{table-layout:fixed}
 table.f3tb td{word-break:break-word}
@@ -468,7 +469,7 @@ const ISSUE_LBL={"북미수요":"북미 EV","유럽수요":"유럽 EV","판매�
   "북미증설(ESS)":"북미 증설","북미증설(EV)":"북미 증설"};
 function rF2(v){
   const card=el("div",{class:"card"},`<h2>이슈별 3사 Position 히트맵</h2>
-    <p class="note">셀 = 하우스당 최신 리포트 1건 기준 스탠스 <b>중앙값</b>(평균 병기), <b>-10 매우부정 ~ +10 매우긍정</b>. 이슈를 <b>정책/보조금·EV·ESS·제품·기술</b> 4개로 묶었으며, <b>셀 클릭 → 점수 분포와 긍정·중립·부정 구분 근거</b>.</p>`);
+    <p class="note">셀 = 하우스당 최신 리포트 1건 기준 스탠스 <b>중앙값</b>(평균 병기), <b>-10 매우부정 ~ +10 매우긍정</b>. 이슈를 <b>정책/보조금·EV·ESS·제품·기술</b> 4개로 묶었으며, <b>셀 클릭 → 점수 분포와 긍정·부정 요약</b>(근거 N개사 펼치기).</p>`);
   const rows={};DATA.f2_stance.forEach(r=>{(rows[r.issue]??={}).c=(rows[r.issue].c||0)+r.n;rows[r.issue][r.company]=r});
   const tb=el("table");tb.append(el("tr",{},`<th>이슈</th>${COMP.map(c=>`<th>${c}</th>`).join("")}`));
   CAT_ORDER.forEach(cat=>{
@@ -501,20 +502,25 @@ function showF2(card,iss,c,r){
   svg.append(sv("line",{x1:P,x2:W-P,y1:ax,y2:ax,stroke:"var(--axis)"}));
   [-10,-5,0,5,10].forEach(t=>{svg.append(sv("line",{x1:X(t),x2:X(t),y1:ax-3,y2:ax+3,stroke:t===0?"var(--ink2)":"var(--axis)","stroke-width":t===0?1.5:1}));
     const tx=sv("text",{x:X(t),y:H-3,"text-anchor":"middle",class:"lbl"});tx.textContent=t>0?"+"+t:t;svg.append(tx)});
-  const isOut=i=>Math.abs(i.score-r.median_recent)>=5; // 아웃라이어(중앙값 ±5)
-  items.forEach((i,k)=>{const out=isOut(i);
-    const col=out?"var(--muted)":(i.score>0?"var(--pos)":i.score<0?"var(--neg)":"var(--muted)");
-    const dot=sv("circle",{cx:X(i.score),cy:ax-10+((k%3)-1)*5,r:4,fill:col,stroke:out?"var(--ink2)":"var(--surface)","stroke-width":out?1.5:1,"fill-opacity":out?1:.85});
-    dot.addEventListener("mousemove",e=>hover(e,`<b>${i.house}</b> ${sgn(i.score)} · ${i.date}${out?"<br><i>아웃라이어(중앙값 ±5)</i>":""}`));dot.addEventListener("mouseleave",unhover);svg.append(dot)});
+  items.forEach((i,k)=>{const col=i.score>0?"var(--pos)":i.score<0?"var(--neg)":"var(--muted)";
+    const dot=sv("circle",{cx:X(i.score),cy:ax-10+((k%3)-1)*5,r:4,fill:col,stroke:"var(--surface)","stroke-width":1,"fill-opacity":.85});
+    dot.addEventListener("mousemove",e=>hover(e,`<b>${i.house}</b> ${sgn(i.score)} · ${i.date}`));dot.addEventListener("mouseleave",unhover);svg.append(dot)});
   svg.append(sv("path",{d:`M${X(r.median_recent)},${ax+5} l-4,7 l8,0 z`,fill:"var(--ink)"}));
   s.append(svg);
-  s.append(el("p",{class:"note",style:"margin:2px 0 0"},"▲ 중앙값 · <span style=\"color:var(--muted)\">●</span> 회색 = 아웃라이어(중앙값과 ±5 이상)"));
-  // 긍정 / 중립 / 부정 구분
-  [["긍정","var(--pos)",i=>i.score>0],["중립","var(--muted)",i=>i.score===0],["부정","var(--neg)",i=>i.score<0]].forEach(([lab,col,f])=>{
+  s.append(el("p",{class:"note",style:"margin:2px 0 0"},"▲ 중앙값 · <span style=\"color:var(--pos)\">●</span> 긍정 · <span style=\"color:var(--neg)\">●</span> 부정"));
+  // 긍정 / 부정 요약 (있으면) + 근거 N개사 토글 · 중립은 목록만
+  [["긍정","var(--pos)","pos",i=>i.score>0],["부정","var(--neg)","neg",i=>i.score<0],["중립","var(--muted)",null,i=>i.score===0]].forEach(([lab,col,key,f])=>{
     const gi=items.filter(f).sort((a,b)=>b.score-a.score);if(!gi.length)return;
-    s.append(el("div",{style:`margin:10px 0 3px;font-weight:700;color:${col};font-size:12.5px`},`${lab} · ${gi.length}개사`));
-    gi.forEach(i=>s.append(el("div",{class:"side",style:`border-left:3px solid ${col};padding-left:10px`},
-      `<b>${i.house}</b> <span class="m">${i.date} · ${sgn(i.score)}</span><br>${i.summary}`)))});
+    s.append(el("div",{style:`margin:12px 0 4px;font-weight:700;color:${col};font-size:12.5px`},`${lab} · ${gi.length}개사`));
+    const sumtext=key&&r.summary&&r.summary[key];
+    if(sumtext)s.append(el("p",{style:`font-size:12.5px;line-height:1.6;color:var(--ink);background:var(--chip);border-left:3px solid ${col};border-radius:0 6px 6px 0;padding:9px 12px;margin:0 0 6px`},sumtext));
+    const list=el("div",{style:sumtext?"display:none":""});
+    gi.forEach(i=>list.append(el("div",{class:"side",style:`border-left:3px solid ${col};padding-left:10px`},
+      `<b>${i.house}</b> <span class="m">${i.date} · ${sgn(i.score)}</span><br>${i.summary}`)));
+    if(sumtext){const tg=el("button",{class:"lnk"},`▸ 근거 ${gi.length}개사 보기`);
+      tg.onclick=()=>{const open=list.style.display==="none";list.style.display=open?"block":"none";tg.textContent=`${open?"▾":"▸"} 근거 ${gi.length}개사 보기`};
+      s.append(tg)}
+    s.append(list)});
   card.append(s);
 }
 

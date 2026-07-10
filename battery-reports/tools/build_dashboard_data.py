@@ -31,6 +31,9 @@ drivers = list(csv.DictReader(open(f"{IDX}/drivers.csv", encoding="utf-8")))
 
 CUR = os.path.join(OUT, "narratives.json")  # 큐레이션 내러티브 (수기)
 narratives = json.load(open(CUR, encoding="utf-8")) if os.path.exists(CUR) else {}
+# 이슈별 긍정/부정 요약 (생성물, issue|company 키). 하우스 구성이 바뀌면 재생성 필요.
+ISUM = os.path.join(OUT, "issue_summaries.json")
+issue_summaries = json.load(open(ISUM, encoding="utf-8")) if os.path.exists(ISUM) else {}
 
 for e in est:
     e["value"] = float(e["value"]) if e["value"] else None
@@ -158,9 +161,17 @@ for (issue, comp), items in mat.items():
         if not cur or i["date"] > cur["date"]:
             latest[i["house"]] = i
     lv = [i["score"] for i in latest.values()]
+    # 긍정/부정 요약 부착 + staleness 검사 (하우스 구성이 바뀌면 경고)
+    summ = issue_summaries.get(f"{issue}|{comp}")
+    if summ:
+        cur_pos = sorted(i["house"] for i in latest.values() if i["score"] > 0)
+        cur_neg = sorted(i["house"] for i in latest.values() if i["score"] < 0)
+        if cur_pos != summ.get("pos_houses") or cur_neg != summ.get("neg_houses"):
+            print(f"  [STALE] 요약 재생성 필요: {issue}|{comp} (하우스 구성 변경)")
     f2.append({"issue": issue, "company": comp,
                "median_recent": st.median(lv), "mean_recent": round(st.mean(lv), 1),
-               "n_houses": len(lv), "n": len(items), "items": items})
+               "n_houses": len(lv), "n": len(items), "items": items,
+               "summary": {"pos": summ["pos"], "neg": summ["neg"]} if summ else None})
 
 # ---------- F3: 증권사별 View 변화 ----------
 f3 = collections.defaultdict(list)
