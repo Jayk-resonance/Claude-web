@@ -149,9 +149,23 @@ for s in stances:
     # 북미 증설은 ESS/EV 내용이 혼재 → 요약 키워드로 분리(ESS 언급 시 ESS, 아니면 EV)
     if issue == "북미CAPEX":
         issue = "북미증설(ESS)" if "ESS" in (s["summary"] or "") else "북미증설(EV)"
+    # 판매량은 지역 EV 수요와 사실상 동일 축 → 유럽 신호면 유럽수요, 그 외(북미·글로벌·국내)는 북미수요로 통합
+    if issue == "판매량":
+        su = s["summary"] or ""
+        eu = any(k in su for k in ["유럽", "EU", "벤츠", "폭스바겐", "BMW"])
+        na = any(k in su for k in ["북미", "미국", "GM", "포드", "스텔란티스", "Rivian", "Stellantis"])
+        issue = "유럽수요" if (eu and not na) else "북미수요"
     mat[(issue, comp)].append({"house": s["house"], "date": s["date"],
                                "score": float(s["stance_score"]) if s["stance_score"] else 0,
                                "summary": s["summary"], "report_id": s["report_id"]})
+# OEM 보상금 (파생 이슈): 생성물 stances를 mat에 주입 — issue별 재채점된 관점
+OEMF = os.path.join(OUT, "oem_comp_stances.json")
+if os.path.exists(OEMF):
+    for o in json.load(open(OEMF, encoding="utf-8")):
+        if o["company"] in COMPANIES:
+            mat[("OEM보상금", o["company"])].append(
+                {"house": o["house"], "date": o["date"], "score": float(o["stance_score"]),
+                 "summary": o["summary"], "report_id": o["report_id"]})
 f2 = []
 for (issue, comp), items in mat.items():
     items.sort(key=lambda x: x["date"])
