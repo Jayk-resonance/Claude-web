@@ -53,7 +53,11 @@ def _render_insight_html(insight_text: str) -> str:
 
 
 def build_email(articles: list[dict], insight_text: str, top_article: dict, date_str: str) -> dict:
-    """Gmail MCP create_draft에 전달할 이메일 파라미터를 반환한다."""
+    """이메일 파라미터(to/subject/htmlBody)를 반환한다.
+
+    Gmail API 자동 발송(run.py) 및 발송 실패 시 Gmail MCP create_draft 폴백에
+    공통으로 사용된다.
+    """
     subject = f"[AI Morning Brief] {date_str} 배터리 (EV/ESS) 핵심 동향"
 
     # 카테고리 순서(config.CATEGORIES) → 카테고리 내 impact_score 내림차순
