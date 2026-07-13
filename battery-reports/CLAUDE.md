@@ -54,6 +54,8 @@ projects/dashboard/dashboard.html              # 자립형 최종 결과물
 
 절차가 이 6단계로 짧으므로 별도 INGEST.md는 두지 않는다. 규칙이 두꺼워지면 그때 분리.
 
+**이슈 태깅 주의(자주 헷갈리는 것)**: `AMPC`(미국 정부 IRA 생산세액공제)와 `OEM보상금`(완성차 고객사 수취 보상금 — 최소구매 미달·물량 미납·설비·JV 청산 등 일회성)은 **다른 이슈**다. 한 리포트가 둘 다 다루면 **각각 스탠스 행을 따로** 붙인다(1문장이 여러 이슈면 여러 행). 전체 이슈 통제어휘·구분 기준은 `schema/NORMALIZATION.md §6`.
+
 ## 대시보드 재생성
 
 UI/차트 로직 = `projects/dashboard/dashboard_template.html`(코드), 데이터 = `data.json`, 서술 = `narratives.json`.

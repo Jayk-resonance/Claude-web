@@ -158,14 +158,6 @@ for s in stances:
     mat[(issue, comp)].append({"house": s["house"], "date": s["date"],
                                "score": float(s["stance_score"]) if s["stance_score"] else 0,
                                "summary": s["summary"], "report_id": s["report_id"]})
-# OEM 보상금 (파생 이슈): 생성물 stances를 mat에 주입 — issue별 재채점된 관점
-OEMF = os.path.join(OUT, "oem_comp_stances.json")
-if os.path.exists(OEMF):
-    for o in json.load(open(OEMF, encoding="utf-8")):
-        if o["company"] in COMPANIES:
-            mat[("OEM보상금", o["company"])].append(
-                {"house": o["house"], "date": o["date"], "score": float(o["stance_score"]),
-                 "summary": o["summary"], "report_id": o["report_id"]})
 f2 = []
 for (issue, comp), items in mat.items():
     items.sort(key=lambda x: x["date"])
