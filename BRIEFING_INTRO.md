@@ -31,7 +31,7 @@ CATL의 신기술 발표, 경쟁사 수주 소식, 미국 IRA 정책 변화 등
 │ EV Maker     │ GM's Sodium-Ion Batteries...             │
 │ ...          │ ...                                      │
 ├──────────────┴──────────────────────────────────────────┤
-│ 🔍 주목 기사 인사이트 (600~700자 심층 분석)               │
+│ 🔍 주목 기사 인사이트 (600~700단어 심층 분석)               │
 │                                                         │
 │ **배경**                                                 │
 │ 전기차 수요 침체가 장기화되면서...                         │
@@ -59,7 +59,7 @@ flowchart TD
     D["**Step 3**\n분류 & 점수화\n6개 카테고리 분류\n임팩트 점수 1~10점"]
     D --> E
 
-    E["**Step 4**\n심층 인사이트 작성\n최고 점수 기사 선정\nSK온 관점 600~700자 분석"]
+    E["**Step 4**\n심층 인사이트 작성\n최고 점수 기사 선정\nSK온 관점 600~700단어 분석"]
     E --> F
 
     F["**Step 5**\nJSON 데이터 생성\n구조화된 형식으로\n정리"]
@@ -193,7 +193,7 @@ AI가 각 기사에 **1~10점**의 임팩트 점수를 자동으로 부여합니
 
 ## 📝 심층 인사이트 구성
 
-최고 임팩트 기사에 대해 AI가 4개 섹션으로 600~700자 분석을 작성합니다.
+최고 임팩트 기사에 대해 AI가 4개 섹션으로 600~700단어 분석을 작성합니다.
 
 ```
 ┌──────────────────────────────────────────┐
@@ -229,7 +229,7 @@ graph LR
 
     subgraph Claude Code on the Web
         ROUTINE([⏰ 스케줄러\n매일 09:00])
-        AI[🤖 Claude AI\nSonnet 4.6]
+        AI[🤖 Claude AI\nClaude Code]
     end
 
     subgraph 코드 파이프라인
@@ -245,7 +245,7 @@ graph LR
     AI -->|분류·점수화·인사이트 작성| RUN
     RUN --> EMAIL
     EMAIL -->|HTML 이메일| AI
-    AI -->|초안 저장 요청| GMAIL
+    AI -->|이메일 발송 요청| GMAIL
     GMAIL -->|📬 수신자에게 전달| GMAIL
 ```
 
@@ -256,13 +256,12 @@ graph LR
 ```
 Claude-web/
 ├── daily_briefing/
-│   ├── run.py          ← 전체 파이프라인 실행 (진입점)
-│   ├── send_email.py   ← HTML 이메일 빌더
-│   ├── fetch_news.py   ← 시간 범위 계산 유틸리티
-│   ├── config.py       ← 수신자 이메일, 카테고리 등 설정값
-│   ├── render.py       ← Word 문서 렌더러 (선택적 사용)
-│   └── insight.py      ← 인사이트 유틸리티
-└── CLAUDE.md           ← AI 행동 가이드라인
+│   ├── run.py           ← 전체 파이프라인 실행 (진입점)
+│   ├── send_email.py    ← HTML 이메일 빌더
+│   ├── gmail_sender.py  ← Gmail API 발송
+│   ├── fetch_news.py    ← 시간 범위 계산 유틸리티
+│   └── config.py        ← 수신자 이메일, 카테고리 등 설정값
+└── CLAUDE.md            ← AI 행동 가이드라인
 ```
 
 ---
