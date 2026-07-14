@@ -49,35 +49,82 @@ KST = UTC+9이므로 UTC 기준으로는:
 
 ---
 
-## Step 2 — 뉴스 수집
+## Step 2 — 뉴스 수집 (Exa 고급검색: 서버측 날짜·출처 필터)
 
-### 2-A. Exa MCP 사용 (우선)
+> **핵심 변경:** 예전에는 뉴스를 잔뜩 긁어온 뒤 인컨텍스트로 날짜를 걸렀지만,
+> 이제는 **Exa 고급검색이 서버에서 날짜·출처·본문길이를 미리 걸러** 반환한다.
+> 창밖 기사·콘텐츠팜·전체 본문을 애초에 안 받아오므로 Step 2 토큰이 대폭 줄어든다
+> (실측 기준 약 85% 감소).
 
-`mcp__Exa__web_search_exa` 툴로 아래 토픽을 **병렬** 검색한다 (총 최대 15건 목표):
+### 2-A. Exa 고급검색 사용 (우선)
+
+`web_search_advanced_exa` 툴(식별자 예: `mcp__Exa-----__web_search_advanced_exa`)로
+아래 토픽을 **병렬** 검색한다 (총 최대 15건 목표).
+
+**필수 파라미터 — 토큰 절감의 핵심이므로 반드시 지킨다:**
+
+| 파라미터 | 값 | 이유 |
+|---|---|---|
+| `category` | `"news"` | 뉴스만 |
+| `startPublishedDate` | **수집 시작일 −1일** (예: 07-13 창 → `"2026-07-12"`) | Exa 날짜는 day 단위·크롤링 추정값 → 경계 누락 방지 안전마진 |
+| `endPublishedDate` | 오늘 날짜 (예: `"2026-07-14"`) | 수집 종료 상한 |
+| `type` | `"auto"` | 품질·필터 호환 (권장) |
+| `numResults` | `8`~`10` | 토픽당 |
+| `enableSummary` | `true` | 전체 본문 대신 **깔끔한 요약**만 확보 |
+| `summaryQuery` | `"EV/battery industry impact and key facts"` | 요약 초점 |
+| `textMaxCharacters` | `250` | **전체 본문 반환 차단** |
+| `excludeDomains` | `sources.py`의 `BLOCKLIST` | 알려진 콘텐츠팜 하드 차단 |
+
+> ⚠️ **`textMaxCharacters`를 반드시 넣는다.** 생략하면 고급검색이 기사 **전체 본문**을
+> 통째로 반환해(건당 최대 ~17,000자) Step 2 토큰이 몇 배로 튄다. 단, `1`처럼 과하게 낮추면
+> 하이라이트/요약까지 깨지므로 `250`을 권장한다.
+
+토픽 쿼리 예시 (날짜는 파라미터로 거르므로 쿼리에 날짜를 넣지 않아도 된다):
 
 | 검색 토픽 | 예시 쿼리 |
 |---|---|
-| EV 배터리 기술 | `"EV battery electric vehicle battery technology news June 2026"` |
-| K-배터리 / 경쟁사 | `"SK On CATL LG Energy Solution Samsung SDI battery news June 2026"` |
-| 완성차 EV 동향 | `"Tesla BYD Hyundai Ford GM electric vehicle battery supply chain news June 2026"` |
-| 정책 / 소재 / ESS | `"lithium nickel cobalt IRA energy storage ESS grid battery policy news 2026"` |
+| EV 배터리 기술 | `"EV battery electric vehicle battery technology news"` |
+| K-배터리 / 경쟁사 | `"SK On CATL LG Energy Solution Samsung SDI battery news"` |
+| 완성차 EV 동향 | `"Tesla BYD Hyundai Ford GM electric vehicle supply chain news"` |
+| 정책 / 소재 / ESS | `"lithium nickel cobalt IRA energy storage ESS grid battery policy news"` |
 
-검색어는 날짜를 포함해 최신 기사가 나오도록 구성한다.
+### 2-B. 완화 사다리 (8건 미달 시 순서대로)
 
-### 2-B. Naver Search MCP 폴백 (Exa 실패 시)
+날짜+출처 필터 탓에 뉴스가 적은 날은 8건이 안 될 수 있다. 아래 순서로 완화한다:
+
+1. `numResults`를 `15`~`20`으로 올려 재검색
+2. `startPublishedDate`를 하루 더 앞으로 확대 (−2일)
+3. `excludeDomains`(BLOCKLIST)만 유지한 채 토픽 쿼리를 다양화
+4. 그래도 부족하면 **Naver 폴백(2-C)**
+
+### 2-C. Naver Search MCP 폴백 (Exa 실패 시)
 
 `mcp__PlayMCP__NaverSearch-search_news` 툴 사용.  
 **반드시 `originallink` 필드를 URL로 사용한다** (link는 네이버 리다이렉트 주소).
+Naver는 서버측 날짜 필터가 없으므로, 이 경로로 받은 기사는 2-D에서 날짜를 반드시 재확인한다.
 
-### 2-C. 날짜 필터링
+### 2-D. 날짜 재검증 (얇은 안전망)
 
-수집한 각 기사의 `publishedAt`을 KST로 변환하여 **수집 범위 밖의 기사는 제외**한다.
+Exa 서버 날짜는 크롤링 추정값이라 경계 오배치·누락이 있을 수 있다.
+받아온 각 기사의 `publishedDate`를 KST로 변환하여 **수집 범위 밖이면 제외**한다.
 
 ```
 publishedAt(UTC) → KST 변환 → 전날 09:00 KST ≤ 기사 시각 < 오늘 09:00 KST
 ```
 
-필터링 후 **8건 미만**이면 추가 검색을 수행해 보충한다.  
+> 서버 필터가 1차, 이 재검증이 2차 안전망이다. **서버 필터를 믿고 이 단계를 생략하지 않는다.**
+
+### 2-E. 출처 신뢰도 태깅
+
+`daily_briefing/sources.py`의 목록을 기준으로 각 기사에 **`source_tier`**를 부여한다.
+`classify_domain(url)` 결과 → `"TIER1"` / `"TIER2"` / `"UNKNOWN"`
+(BLOCKLIST 도메인은 2-A에서 이미 제외됨; 폴백으로 유입 시 여기서 **하드 제외**).
+
+- `source_tier`는 impact_score에 **약한 가중치**로만 반영한다: `UNKNOWN`은 −1 정도 감점,
+  점수 산정 자체는 여전히 모델 판단으로 한다.
+- 목록에 없는 매체라고 무조건 저신뢰는 아니다 — 내용으로 판단하되,
+  **인사이트 선정(Step 4)에서만 출처를 엄격히 본다.**
+
 최종 수집 기사는 **최대 15건**.
 
 ---
@@ -113,9 +160,44 @@ publishedAt(UTC) → KST 변환 → 전날 09:00 KST ≤ 기사 시각 < 오늘 
 
 ---
 
+## Step 3.5 — 직전 인사이트 확인 (중복 방지)
+
+인사이트(Step 4)를 고르기 전에 **최근 발송분과 같은 기사를 또 뽑지 않도록** 직전 이력을 확인한다.
+
+### 3.5-A. Gmail 발송 이력 조회
+
+Gmail MCP로 최근 발송 메일을 조회한다:
+
+- `mcp__Gmail__search_threads` 쿼리: `subject:"[AI Morning Brief]" newer_than:4d`
+- 최근 1~2건 스레드를 `mcp__Gmail__get_thread`로 열어 **인사이트 헤더 박스의 기사 제목/URL**을 추출한다.
+
+각 직전 인사이트에 대해 **정규화된 스토리 키(`topic_key`)**를 뽑는다.
+`topic_key`는 URL이 아니라 **사건 단위**로 잡는다 (예: `"SK온 배터리 결함 리콜"`).
+→ 다른 매체가 같은 사건을 보도해도 같은 `topic_key`로 묶인다.
+
+### 3.5-B. 폴백
+
+Gmail 조회가 실패하면(커넥터 미연결·인증 만료 등) **중복 확인만 건너뛰고** 나머지는 정상 진행한다.
+이 경우 "직전 이력 미확인" 상태임을 최종 보고에 명시한다.
+
+---
+
 ## Step 4 — 인사이트 작성
 
-`impact_score`가 가장 높은 기사 1건을 선정하고, 해당 기사에 대한 **한국어 인사이트를 600~700단어**로 작성한다.
+### 인사이트 기사 선정 규칙
+
+1. **후보 정렬:** 수집 기사를 `impact_score` 내림차순으로 본다.
+2. **출처 교차검증:** 인사이트로 뽑는 기사는 반드시 **TIER1/TIER2**이면서
+   **독립된 2개 이상 출처가 같은 사건을 보도**한 건이어야 한다.
+   콘텐츠팜·단독 미확인 보도는 인사이트로 불가하다 (기사 테이블에는 실을 수 있음).
+3. **중복 로테이션:** 최고 impact 기사의 `topic_key`가 **Step 3.5의 직전 인사이트와 같으면**,
+   그다음으로 impact 높은 **다른 `topic_key` 기사**를 인사이트로 선정한다.
+   - 예외: 같은 스토리라도 **중대한 신규 전개**가 있으면 허용하되, 반드시
+     "후속/새 각도"로 프레이밍한다 (예: 리콜 → 배터리팩 교체 비용·주가 반응 등).
+4. **정보 손실 없음:** 로테이션하는 건 '인사이트 1건'뿐이다.
+   그 대형 이슈는 기사 테이블에 계속 실어도 된다.
+
+위 규칙으로 선정한 기사 1건에 대해 **한국어 인사이트를 600~700단어**로 작성한다.
 
 ### 필수 4개 섹션 (소제목 형식 엄수)
 
@@ -156,7 +238,9 @@ SK온에게 기회인가 위협인가 — 구체적 행동 방향 포함
       "publishedAt": "2026-06-30T08:00:00Z",
       "category": "위 6개 중 하나",
       "summary": "요약 1줄\n요약 2줄\n요약 3줄",
-      "impact_score": 8
+      "impact_score": 8,
+      "source_tier": "TIER1",
+      "topic_key": "SK온 배터리 결함 리콜"
     }
   ],
   "insight": "## 배경\n\n...\n\n## 핵심 내용\n\n...\n\n## 산업 영향\n\n...\n\n## SK온 관점에서의 시사점\n\n..."
@@ -176,9 +260,12 @@ SK온에게 기회인가 위협인가 — 구체적 행동 방향 포함
 | `category` | 위 6개 카테고리 중 하나 |
 | `summary` | 핵심 내용 3줄, `\n`으로 구분 |
 | `impact_score` | 1~10 정수 |
+| `source_tier` | `TIER1`/`TIER2`/`UNKNOWN` (`sources.py` `classify_domain` 기준) |
+| `topic_key` | 사건 단위 정규화 키 (중복 판단용) |
 | `insight` | Step 4에서 작성한 한국어 인사이트 전문 |
 
 > `articles`는 `impact_score` 내림차순으로 정렬하지 않아도 된다. `run.py`가 자동 정렬한다.
+> `source_tier`·`topic_key`는 내부 판단용 필드로, 이메일 렌더링에는 사용되지 않는다(`run.py`가 무시).
 
 ---
 
@@ -253,6 +340,7 @@ htmlBody: email_output.json의 htmlBody 값  ← 수정 금지
 ```
 daily_briefing/
 ├── config.py         # 수신자, 카테고리, 모델명 등 상수
+├── sources.py        # 출처 신뢰도 목록 (TIER1/2·BLOCKLIST) + classify_domain()
 ├── fetch_news.py     # get_kst_window() — 시간 범위 계산
 ├── run.py            # 진입점: JSON 읽기 → HTML 빌드 → Gmail API 발송
 ├── send_email.py     # build_email() — HTML 이메일 렌더링
@@ -270,8 +358,11 @@ daily_briefing/
 
 - [ ] `daily-news-briefing-v1` 브랜치 체크아웃 완료
 - [ ] 수집 시간 범위(전날 KST 09:00 ~ 오늘 KST 09:00) 정확히 계산
-- [ ] 날짜 필터 통과 기사 **8건 이상** 확보
-- [ ] 각 기사에 카테고리 및 impact_score 부여
+- [ ] Exa 고급검색에 `startPublishedDate`/`endPublishedDate` + `textMaxCharacters` 적용
+- [ ] 날짜 재검증 통과 기사 **8건 이상** 확보 (미달 시 완화 사다리)
+- [ ] 각 기사에 카테고리 · impact_score · `source_tier` 부여
+- [ ] Step 3.5 직전 인사이트 확인 (또는 실패 시 "미확인" 명시)
+- [ ] 인사이트 기사: TIER1/2 + 2개 이상 출처 교차검증, 직전과 `topic_key` 중복 아님
 - [ ] 인사이트 4개 섹션 모두 포함, 600~700단어
 - [ ] `/tmp/briefing_input.json` 스키마 오류 없음
 - [ ] `run.py` 실행 시 `--draft` 플래그 미사용
