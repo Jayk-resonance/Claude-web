@@ -1,0 +1,4 @@
+# 개인정보·비밀 보호 (절대 커밋 금지)
+.env
+recipients.csv
+sent.log
