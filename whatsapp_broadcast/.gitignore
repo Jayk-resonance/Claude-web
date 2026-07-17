@@ -2,3 +2,4 @@
 .env
 recipients.csv
 sent.log
+__pycache__/
