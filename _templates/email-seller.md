@@ -36,12 +36,20 @@ I am seriously interested and would like to move to an offer. Before I do, I hav
 9. <유튜브: 최근 365일 공개 시청 시간 스크린샷 — YPP 자격 판정>
 10. <최종 업로드 일자 / 소셜 계정 현황>
 
+— PLATFORM AND RUNNING COSTS —
+*(비개발자 운영 가능성 — operability.md. 답변이 밸류에이션과 인수 후 실행 가능성을 동시에 바꾼다.)*
+
+11. <기술 스택: WordPress인가, 아니면 커스텀 코드 기반인가>
+12. <커스텀 기능: 퀴즈·회원·계산기 등이 시판 플러그인인가 자체 개발인가. 트래픽 상위 페이지가 여기 의존하는가>
+13. <월 고정비 실액 — 호스팅·유료 라이선스·도구별로. **그리고 표기된 월수익이 이 비용 차감 전인지 후인지**>
+14. <유료 테마·플러그인 목록과 각각의 라이선스 승계 가능 여부>
+15. <사이트 이전: 호스팅 계정째 승계 가능한가. 아니면 마이그레이션을 지원해줄 수 있는가>
+
 — ASSETS AND HANDOVER —
 
-11. Which registrar holds the domain, and which host serves the site? Will hosting transfer with the sale, or should I plan a migration? What are the annual costs?
-12. Are all images, audio files and downloadable assets original works owned by you and fully transferable with the sale? Are any assets licensed from third parties?
-13. Are there any email addresses associated with the domain, and will they transfer?
-14. Would you be able to provide a handover and support period — for example 30 days — after closing?
+16. Which registrar holds the domain? Are there any email addresses associated with the domain, and will they transfer?
+17. Are all images, audio files and downloadable assets original works owned by you and fully transferable with the sale? Are any assets licensed from third parties?
+18. Would you be able to provide a handover and support period — for example 30 days — after closing?
 
 Thank you very much. I am happy to move quickly once these points are clear.
 
@@ -58,3 +66,7 @@ Best regards,
 | 플랫폼 자격 승계 미확인 | 최대 리스크 미해소 | 플랫폼에 직접 확인 (셀러 말 불충분) |
 | 유튜브 브랜드 계정 아님 | 정식 이전 불가 | 계약서에 이전 절차 별도 명문화 |
 | 제3자 라이선스 자산 포함 | 승계 불가 자산 | 가치에서 제외 |
+| **커스텀 코드 기반** | 비개발자 유지보수 불가 | **KILL 검토** |
+| **고정비가 수익의 20%+** | 실질 배수가 표기보다 훨씬 높음 | **배수 재계산 후 재협상** |
+| 유료 라이선스 승계 불가 | 보안 업데이트 중단 | 재구매 비용을 매입가에서 차감 |
+| 마이그레이션 지원 거부 | 외주비 $200~500 + 다운타임 리스크 | 그 금액만큼 가격 인하 요구 |
