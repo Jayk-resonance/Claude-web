@@ -25,6 +25,11 @@ PERIODS = {"FY", "1Q", "2Q", "3Q", "4Q"}
 OPINIONS = {"매수", "중립", "매도", None}
 
 COMPANY_STD = {"LG에너지솔루션": "LGES", "엘지에너지솔루션": "LGES", "LG Energy Solution": "LGES"}
+# metric 통제어휘 (NORMALIZATION.md §9). 대시보드는 매출/영업이익/AMPC 만 집계하므로
+# 동의어가 갈리면 그 리포트의 값이 조용히 누락된다 — 인제스트 시 여기서 통일한다.
+METRIC_STD = {"매출액": "매출", "AMPC(Tax Credit)": "AMPC",
+              "지배주주순익": "지배주주순이익", "지배순이익": "지배주주순이익"}
+METRICS = {"매출", "영업이익", "AMPC", "순이익", "지배주주순이익", "출하량", "점유율"}
 REGION_STD = {"미국": "북미", "캐나다": "북미", "독일": "유럽", "프랑스": "유럽",
               "영국": "유럽", "이탈리아": "유럽", "스페인": "유럽", "EU": "유럽",
               "일본": "기타", "인도": "기타", "아세안": "기타"}
@@ -52,6 +57,14 @@ def validate(r):
         if e.get("segment_std") == "AMPC":  # 구버전 흔적 교정
             e["segment_std"] = "전사"
             e["metric"] = "AMPC"
+        # metric 통제어휘로 통일 (동의어 → 표준어)
+        m = e.get("metric")
+        if m == "영업이익(AMPC제외)":       # 지표명에 basis가 섞인 표기
+            e["metric"], e["ampc_basis"] = "영업이익", "excl"
+        elif m in METRIC_STD:
+            e["metric"] = METRIC_STD[m]
+        elif m is not None and m not in METRICS:
+            warn(rid, f"metric 비표준(통제어휘 밖): {m} — METRIC_STD 매핑 추가 검토")
         if e.get("segment_std") not in SEG_STD:
             # 3사 부문이 아닌 밸류체인/소재 등은 '기타'로 강제 (원문 segment 보존)
             warn(rid, f"segment_std '기타'로 강제: {e.get('segment_std')} (segment={e.get('segment')})")
