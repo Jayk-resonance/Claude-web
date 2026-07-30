@@ -3,6 +3,9 @@
 이 폴더(`battery-reports/`)에서 작업할 때 세션 시작 시 **자동으로 읽히는 파일**이다.
 맥락이 전혀 없는 상태로 첫 명령을 받아도, 이 문서만 따르면 올바른 절차를 밟도록 설계되었다.
 루트의 `../CLAUDE.md`(범용 코딩 지침)와 병행 적용한다.
+Claude 외 도구(GPT·Gemini·Cursor 등)는 이 파일을 자동 로드하지 않으므로, 진입점은 루트
+`../AGENTS.md`에 있다 — 브랜치·필독 문서·사고 사례를 안내하고 이 문서로 넘긴다.
+**세부 규칙의 원본은 이 문서와 `schema/`이며, AGENTS.md에 복제하지 않는다.**
 
 ## 이 저장소가 하는 일
 
@@ -72,9 +75,42 @@ python3 tools/assemble_dashboard.py     # template + data.json → dashboard.htm
 
 - **원천 불가침**: `reports/`·`index/`는 분석 과정에서 절대 손으로 수정하지 않는다. 분석 결과는 `projects/<이름>/`에만 쓴다. 인덱스는 스크립트로만 재생성한다.
 - **표기 오류 교정은 스테이징이 아니라 코드에서**: 실적 확정 기간의 OP basis 교정은 `build_dashboard_data.py`의 `KNOWN_OP_BASIS`, 수요 시리즈 분류는 `demand_curation.py`에서만 수정한다. 원본 인덱스는 건드리지 않는다.
-- **.staging/**: 개별 JSON은 gitignore(`.staging/.gitignore`), `manifest.json`만 커밋된다. MD·인덱스가 영속 DB이므로 staging은 재현용 중간물이다.
+- **.staging/**: JSON 전부를 **git으로 추적한다**. staging이 MD·인덱스를 재생성하는 유일한 소스이므로, 없으면 `build_indexes.py`가 DB를 비운다(그래서 축소 재빌드는 자동 차단되고 `--force`로만 강행 가능). 여러 사람·여러 LLM이 나눠 인제스트할 때도 staging 공유가 필수다.
 - **git 브랜치**: 지정된 작업 브랜치에 커밋·푸시한다. 커밋은 반드시 `cd battery-reports` 후 실행(셸 cwd가 리포 루트로 리셋되는 경우 있음). force-push는 거부되니 fast-forward로 정렬.
 - **Artifact 재게시**: 대시보드를 Artifact로 다시 올릴 때는 **반드시 기존 URL을 `url` 파라미터로 지정**한다(안 하면 새 URL이 발급됨).
+
+## 새 실적 발표 시 갱신 체크리스트
+
+분기 실적이 발표되면 **코드에 하드코딩된 지점 5곳 + 큐레이션 서술 4곳**을 손봐야 한다.
+안 하면 조용히 낡은 값이 표시된다(오류가 나지 않으므로 더 위험).
+
+**A. 코드 (실적 확정 시 필수)** — `tools/build_dashboard_data.py`
+
+| 대상 | 무엇을 | 안 하면 |
+|---|---|---|
+| `ANNOUNCE` | (회사, 연도, 분기): 발표일 추가 | 아웃라이어 분석 대상 분기가 안 넘어감 |
+| `KNOWN_OP_BASIS` | 실적 확정 OP의 incl/excl 값 추가 | 점도표 basis 자동교정 누락 → 이탈점 발생 |
+| `KNOWN_ANNOUNCE` | 발표일 추가 | 발표 후 기준 불일치 점이 안 걸러짐 |
+| `skon_quarters()` | SK온 새 분기 cutoff 추가 | SK온 실적선이 안 그려짐 |
+| `QFY` | 분석연도 (3Q 실적 후 다음 해로) | 분기 점도표·아웃라이어가 옛 연도 고정 |
+
+`F5_TARGETS`(아웃라이어 대상 분기·연도)는 `ANNOUNCE` 기준으로 **자동 롤링**되므로 손대지 않는다.
+
+**B. 큐레이션 서술 (숫자가 바뀌면 갱신)**
+
+| 대상 | 위치 | 성격 |
+|---|---|---|
+| `F1HEAD` / `F4WHY` / `F6GAP` | `dashboard_template.html` | 차트 헤드메시지 — **차트 숫자와 대조 필수** |
+| `narratives.json` | `projects/dashboard/` | QoQ 손익 차이분석(분기별 브리핑) |
+| `issue_summaries.json` | `projects/dashboard/` | 이슈별 긍정/부정 요약 |
+
+- `issue_summaries.json`은 **staleness 자동 감지**가 있다: 하우스 구성이 바뀌면 빌드 시
+  `[STALE] 요약 재생성 필요: <이슈>|<회사>` 경고가 뜬다 → 그 셀만 재생성한다.
+- 헤드메시지는 감지 장치가 없다. **데이터가 바뀐 뒤에는 반드시 차트 값과 눈으로 대조**한다
+  (과거에 십억원↔억원 10배 오차, 매출 정규화 후 8.2조→8.46조 불일치 사례가 있었다).
+
+**C. 순서**: 인제스트(1~6단계) → A 갱신 → `build_dashboard_data.py`(STALE 경고 확인)
+→ B 갱신 → 재빌드 → `assemble_dashboard.py` → 스크린샷으로 헤드메시지·차트 대조.
 
 ## 현재 상태를 확인하는 법 (숫자를 여기 박지 말 것)
 

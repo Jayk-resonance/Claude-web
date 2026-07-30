@@ -52,3 +52,47 @@ source_pdf: inbox/미래에셋_20260115.pdf   # 원본 경로 (모든 숫자의 
 
 ## 원문 인용
 <!-- 핵심 주장은 원문 그대로 보존. 환각 방지 + 감사 가능. (p.N) 형식으로 페이지 표기. -->
+
+---
+
+# 부록. 인제스트 입력 형식 — `.staging/<report_id>.json`
+
+**위 MD는 직접 쓰지 않는다.** 인제스트는 staging JSON을 만들고, `tools/build_indexes.py`가
+그 JSON에서 위 MD와 `index/*`를 **자동 생성**한다. 따라서 아래 키 이름을 정확히 맞춰야 한다.
+
+```jsonc
+{
+  "report_id": "2026-01-15_미래에셋_LGES",   // = 파일명(확장자 제외)
+  "date": "2026-01-15", "house": "미래에셋", "analyst": null,
+  "coverage": "LGES",            // LGES | 삼성SDI | SK온 | 산업
+  "report_type": "기업",          // 기업 | 산업
+  "opinion": "매수",              // 매수 | 중립 | 매도 | null(산업)
+  "target_price": 450000, "prev_target_price": 420000,
+  "key_issues": ["LFP", "북미CAPEX"],
+  "top_picks": [],                            // 산업 리포트만
+  "estimates": [ { /* company, segment, segment_std, fy, period, metric, value, unit, ampc_basis, page */ } ],
+  "stances":   [ { /* issue, company, stance_score, summary, page */ } ],
+  "industry_views": [ { /* scope, fy, metric, value, unit, direction, summary, page */ } ],
+  "demand_forecasts": [ /* 산업 v3 — NORMALIZATION.md §8 */ ],
+  "themes":          [ /* 산업 v3 — NORMALIZATION.md §8 */ ],
+  "body": { "summary": "...", "valuation": "...", "segment_pl": "...",
+            "issue_comments": "...", "risks": "...", "quotes": "..." }
+}
+```
+
+**`body` 6개 키 → MD 섹션 매핑** (키 이름이 틀리면 그 섹션이 **오류 없이 빈 채로** 생성된다)
+
+| body 키 | MD 섹션 |
+|---|---|
+| `summary` | `## 핵심 요약` |
+| `valuation` | `## 투자의견·목표주가 (도출 근거)` |
+| `segment_pl` | `## 사업부문별 손익` |
+| `issue_comments` | `## 이슈별 코멘트` |
+| `risks` | `## 리스크 요인` |
+| `quotes` | `## 원문 인용` |
+
+- 각 값은 문자열 또는 문자열 리스트(리스트는 개행으로 결합된다). `null`은 빈 섹션이 된다.
+- `estimates`·`stances`의 값 규칙(단위 십억원, segment_std, ampc_basis, metric 통제어휘,
+  stance_score −10~+10)은 `NORMALIZATION.md` 를 따른다.
+- 작성 후 반드시 `python3 tools/build_indexes.py --check` 로 경고를 확인한다.
+  `metric 비표준`·`segment_std 강제`·`stance_score 범위 밖` 경고는 **데이터가 새는 신호**다.
