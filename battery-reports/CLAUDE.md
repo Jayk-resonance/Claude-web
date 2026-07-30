@@ -71,6 +71,18 @@ python3 tools/assemble_dashboard.py     # template + data.json → dashboard.htm
 
 같은 인덱스에서 실행하면 결정적으로 같은 결과가 나온다(재해석 개입 없음).
 
+### 웹 배포 (GitHub Pages)
+
+```
+python3 tools/deploy_pages.py            # dashboard.html → ../docs/battery/index.html
+git add ../docs && git commit && git push  # Pages가 자동 반영
+```
+
+- 배포 경로를 `docs/battery/` 하위로 둔 이유: 같은 저장소의 기존 Pages 사이트(`docs/index.html`)와 **충돌 없이 공존**하기 위해서다. 주소는 `<pages-url>/battery/`.
+- **`docs/battery/index.html`은 생성물이다. 직접 편집하지 않는다** — 다음 배포 때 덮어쓰인다.
+  화면을 고치려면 `dashboard_template.html`(UI) 또는 데이터 파이프라인을 고치고 위 3단계를 다시 돈다.
+- GitHub Pages의 소스 브랜치·폴더 설정(저장소 Settings → Pages)이 이 브랜치의 `/docs`를 가리켜야 실제로 게시된다.
+
 ## 운영 규칙
 
 - **원천 불가침**: `reports/`·`index/`는 분석 과정에서 절대 손으로 수정하지 않는다. 분석 결과는 `projects/<이름>/`에만 쓴다. 인덱스는 스크립트로만 재생성한다.
