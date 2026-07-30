@@ -4,6 +4,11 @@
 사용법:
   python3 tools/build_indexes.py           # 검증 + 렌더 + 인덱스
   python3 tools/build_indexes.py --check   # 검증만 (파일 안 씀)
+  python3 tools/build_indexes.py --force   # DB 축소 안전장치 무시 (의도적 삭제 시에만)
+
+주의: .staging 을 유일한 소스로 index/ 와 reports/ 를 전량 덮어쓴다.
+      staging 이 없거나 일부만 있으면 DB가 지워지므로, 리포트 수가 줄어드는
+      재빌드는 자동으로 중단된다(--force 로만 강행).
 
 입력:  .staging/<report_id>.json (리포트), .staging/actuals_*.json (IR)
 출력:  reports/<YYYY>/<report_id>.md
@@ -146,7 +151,7 @@ def render_md(r):
     return "\n".join(fm) + "\n" + "\n".join(body)
 
 
-def main(check_only=False):
+def main(check_only=False, force=False):
     files = sorted(glob.glob(os.path.join(STAGING, "*.json")))
     reports, actuals_sets = [], []
     for p in files:
@@ -191,6 +196,21 @@ def main(check_only=False):
         for w in warnings:
             print(" ", w)
         return 1 if missing else 0
+
+    # --- 안전장치: 재빌드가 기존 DB를 축소시키면 중단 ---
+    # 이 스크립트는 .staging 을 유일한 소스로 삼아 index/ 를 전량 덮어쓴다.
+    # staging 이 비어 있거나 일부만 있는 클론에서 실행하면 DB가 지워지므로,
+    # 리포트 수가 줄어드는 재빌드는 기본적으로 거부한다. (의도적 삭제 시 --force)
+    prev_path = os.path.join(ROOT, "index", "reports.jsonl")
+    if os.path.exists(prev_path) and not force:
+        with open(prev_path, encoding="utf-8") as f:
+            prev_n = sum(1 for line in f if line.strip())
+        if len(reports) < prev_n:
+            print(f"\n[중단] 재빌드가 DB를 축소시킵니다: 기존 {prev_n}건 → staging {len(reports)}건")
+            print(f"  .staging/*.json 이 {len(reports)}개만 있습니다. 클론에 staging 이 없거나 일부만 받은 상태일 수 있습니다.")
+            print("  index/ 와 reports/ 를 덮어쓰지 않고 종료합니다.")
+            print("  의도적으로 리포트를 줄이는 경우에만: python3 tools/build_indexes.py --force")
+            return 2
 
     # --- MD ---
     for r in reports:
@@ -304,4 +324,4 @@ def main(check_only=False):
 
 
 if __name__ == "__main__":
-    sys.exit(main("--check" in sys.argv))
+    sys.exit(main("--check" in sys.argv, "--force" in sys.argv))
