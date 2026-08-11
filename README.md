@@ -17,12 +17,12 @@ Claude Code on the Web의 **Routine** 기능으로 매일 아침(KST 09:00) EV·
 
 ```
 daily_briefing/
-├── run.py          # 진입점: JSON → HTML 빌드 → Gmail API 발송
-├── send_email.py   # HTML 이메일 빌더
-├── gmail_sender.py # Gmail REST API 발송
-├── fetch_news.py   # 수집 시간 범위 계산 (get_kst_window)
-├── config.py       # 수신자·카테고리 등 설정
-└── ROUTINE.md      # 루틴 실행 지시문 (7단계 상세)
+├── run.py             # 진입점: JSON → HTML 빌드 → Gmail API 발송
+├── send_email.py      # HTML 이메일 빌더
+├── gmail_sender.py    # Gmail REST API 발송
+├── sources.py         # 출처 신뢰등급(TIER1/TIER2)·콘텐츠팜 차단 목록
+├── config.py          # 수신자·카테고리 등 설정
+└── ROUTINE_PROMPT.md  # 루틴 트리거 프롬프트 원본 (7단계 상세)
 ```
 
 ## 셋업
@@ -44,4 +44,5 @@ python run.py --input /tmp/briefing_input.json          # 발송
 python run.py --input /tmp/briefing_input.json --draft  # 발송 없이 빌드만
 ```
 
-자세한 루틴 실행 절차는 [`daily_briefing/ROUTINE.md`](daily_briefing/ROUTINE.md)를 참고하세요.
+자세한 루틴 실행 절차는 [`daily_briefing/ROUTINE_PROMPT.md`](daily_briefing/ROUTINE_PROMPT.md)를 참고하세요.
+이 파일이 매일 실행되는 스케줄 루틴의 프롬프트 원본입니다.

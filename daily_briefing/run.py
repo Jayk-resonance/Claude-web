@@ -2,8 +2,7 @@
 
 Claude Code가 이 루틴을 다음 순서로 실행한다:
 
-  1. fetch_news.get_kst_window() 으로 시간 범위 확인
-     (전날 KST 09:00 → 오늘 KST 09:00)
+  1. 수집 시간 범위 확인 (전날 KST 09:00 → 오늘 KST 09:00)
   2. Exa MCP (우선) 또는 Naver Search MCP (fallback) 으로 뉴스 수집
      - Naver 사용 시: link 가 아닌 originallink 사용 (리다이렉트 방지)
   3. 각 기사에 category (config.CATEGORIES 중 하나) 와 impact_score (1-10) 부여
