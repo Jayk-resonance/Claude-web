@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Gmail OAuth 자격증명 — .env.example만 커밋하고 실제 .env는 절대 올리지 않는다
+.env
