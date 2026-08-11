@@ -1,99 +1,160 @@
 ---
-# ─────────────────────────────────────────────────────────────
-# 리포트 표준 메타데이터 (= DB의 '컬럼'). 매 인제스트마다 이 형식을 강제한다.
-# 값을 모르면 빈칸이 아니라 null 로 둔다. 숫자는 단위를 unit 에 명시한다.
-# ─────────────────────────────────────────────────────────────
-report_id: 2026-01-15_미래에셋_LGES     # = 파일명(확장자 제외). YYYY-MM-DD_증권사_커버리지
-date: 2026-01-15                        # 리포트 발간일 (YYYY-MM-DD)
-house: 미래에셋                          # 증권사
-analyst: null                           # 애널리스트명 (없으면 null)
+# 리포트 표준 메타데이터 (= DB 컬럼). 매 인제스트마다 이 형식을 강제한다.
+report_id: 2026-01-15_미래에셋_LGES
+date: 2026-01-15
+house: 미래에셋
+analyst: null
 coverage: LGES                          # LGES | 삼성SDI | SK온 | 산업
-report_type: 기업                        # 기업 | 산업
-opinion: 매수                            # 매수 | 중립 | 매도 | null (산업리포트면 null)
-target_price: 450000                    # 목표주가(원). 없으면 null
-prev_target_price: 420000               # 직전 목표주가(원). 상향/하향 델타 계산용. 없으면 null
+report_type: 기업                       # 기업 | 산업
+opinion: 매수                            # 매수 | 중립 | 매도 | null
+target_price: 450000
+prev_target_price: 420000
 
-# 세그먼트/전사 손익·추정치. estimates.csv 로도 펼쳐진다. (스키마 v2)
-# segment: 원문 그대로 / segment_std: NORMALIZATION.md 매핑 / period: FY|1Q~4Q
-# ampc_basis: excl|incl|incl_unknown|na / AMPC 금액은 metric=AMPC 별도 행
-# 중요: 특정 회사의 ESS 매출·출하·CAPA·수주 등 회사 데이터는 estimates/stances/industry_views에 두며,
-# 시장 전체의 정량 수요 전망과 섞지 않는다.
+# 회사/세그먼트 손익 추정치. 금액 중심 회사 전망은 여기 저장.
 estimates:
   - {company: LGES, segment: 전사, segment_std: 전사, fy: 2026, period: FY, metric: 영업이익, value: 993, unit: 십억원, ampc_basis: incl, page: 3}
   - {company: LGES, segment: 전사, segment_std: 전사, fy: 2026, period: FY, metric: AMPC, value: 1425, unit: 십억원, ampc_basis: na, page: 3}
   - {company: LGES, segment: ESS, segment_std: ESS, fy: 2026, period: 2Q, metric: 매출, value: 2062, unit: 십억원, ampc_basis: excl, page: 3}
 
-# 이슈별 스탠스. stances.csv 로도 펼쳐진다.
-# stance_score: -10 ~ +10 (NORMALIZATION.md 6절 rubric 참조)
 stances:
-  - {issue: LFP,      company: LGES, stance_score: 5,  summary: "26년 하반기 양산 목표, 경쟁사 대비 1년 후행", page: 5}
-  - {issue: 북미CAPEX, company: LGES, stance_score: -4, summary: "IRA 불확실성으로 증설 속도 조절 가능성", page: 6}
+  - {issue: ESS, company: LGES, stance_score: 6, summary: "미국 ESS 수요 확대 수혜", page: 2}
 
-key_issues: [LFP, 북미CAPEX, 수율]        # 이 리포트가 다룬 이슈 태그
-# 정성적 산업 전망. 기업/산업 리포트 모두 허용한다.
+key_issues: [ESS, LFP, 북미CAPEX]
+
+# 숫자 없는 시장 방향성/논거. 기업/산업 리포트 모두 허용.
 industry_views:
-  - {scope: 북미ESS, fy: 2026, metric: 수요, value: null, unit: GWh, direction: 2, summary: "AI 데이터센터發 수요 급증", page: 2}
-# 정량 시장 수요 전망. report_type과 무관하게 기업/산업 리포트 모두 허용한다.
-# 반드시 '시장 전체/서브시장' 전망만 저장한다. LGES·삼성SDI·SK온·CATL 등 특정 회사의
-# ESS 매출·출하량·CAPA·수주잔고는 demand_forecasts에 넣지 않는다.
+  - {scope: 북미ESS, fy: 2026, metric: 수요, value: null, unit: GWh, direction: 2, summary: "AI 데이터센터발 수요 급증", page: 2}
+
+# 정량 시장 전망. 기업/산업 리포트 구분 없이 수집한다.
+# 기존 region/application 필드는 하위호환용. ESS 상세 분석은 raw/std/detail을 추가한다.
 demand_forecasts:
-  - {region: 북미, application: ESS, metric: 수요량, fy: 2026, value: 60, value_prev: null, unit: GWh, basis: "북미 ESS 시장 전체", page: 2}
-top_picks: []                             # 산업 리포트의 최선호주
-source_pdf: inbox/미래에셋_20260115.pdf   # 원본 경로 (모든 숫자의 감사 추적용)
+  - {region: 북미, application: ESS, region_raw: 미국, region_std: US, application_raw: "AI Data Center ESS", application_std: "Data Center", application_detail: BESS, metric: 수요량, forecast_type: demand, fy: 2030, value: 160, value_low: null, value_high: null, value_prev: null, unit: GWh, basis: "미국 AIDC향 ESS 시장", source_org: 미래에셋, source_name: null, source_type: broker_estimate, page: 2, verification_status: pdf_verified}
+
+# ESS 회사/경쟁사 물리량·시장지위. 손익 금액은 estimates에 두고 CAPA/출하/수주/M/S 중심으로 사용.
+company_metrics:
+  - {company: LGES, entity_type: company, company_group: K-battery, region_raw: 미국, region_std: US, application_raw: "ESS 전체", application_std: Total, application_detail: null, metric: capacity, fy: 2026, value: 50, value_low: null, value_high: null, unit: GWh, basis: "미국 ESS 생산능력", source_org: 미래에셋, source_type: broker_estimate, page: 2, verification_status: pdf_verified}
+  - {company: CATL, entity_type: company, company_group: China, region_raw: 미국, region_std: US, application_raw: "Utility-Grid ESS", application_std: Grid, application_detail: Utility, metric: market_share, fy: 2027, value: 40, value_low: null, value_high: null, unit: "%", basis: "미국 Utility/Grid ESS", source_org: 미래에셋, source_type: broker_estimate, page: 5, verification_status: pdf_verified}
+
+top_picks: []
+source_pdf: inbox/미래에셋_20260115.pdf
 ---
 
 ## 핵심 요약
-<!-- 3~5줄. 이 리포트의 결론. -->
+<!-- 3~5줄. -->
 
 ## 투자의견·목표주가 (도출 근거)
-<!-- 밸류에이션 방식(EV/EBITDA, P/B 등), 멀티플, 목표주가 산출 논리. 직전 대비 변경 사유. -->
+<!-- 밸류에이션 방법, 멀티플, 변경 사유. -->
 
 ## 사업부문별 손익
-<!-- 회사·세그먼트별 매출/영업이익/영업이익률/출하량 표. frontmatter estimates 와 일치시킬 것. -->
+<!-- frontmatter estimates와 일치. -->
 
 ## 이슈별 코멘트
-<!-- LFP / 46파이 / ESS / 북미CAPEX / 수율 등. frontmatter stances 와 일치시킬 것. -->
+<!-- LFP / 46파이 / ESS / 북미CAPEX / 수율 등. -->
 
 ## 리스크 요인
-<!-- 하방 리스크. 태그화 가능하도록 항목별로. -->
 
 ## 원문 인용
-<!-- 핵심 주장은 원문 그대로 보존. 환각 방지 + 감사 가능. (p.N) 형식으로 페이지 표기. -->
+<!-- 핵심 주장은 원문 그대로 보존하고 (p.N) 페이지를 표기. -->
 
 ---
 
 # 부록. 인제스트 입력 형식 — `.staging/<report_id>.json`
 
-**위 MD는 직접 쓰지 않는다.** 인제스트는 staging JSON을 만들고, `tools/build_indexes.py`가
-그 JSON에서 위 MD와 `index/*`를 **자동 생성**한다. 따라서 아래 키 이름을 정확히 맞춰야 한다.
+MD는 직접 작성하지 않는다. 인제스트는 staging JSON을 만들고 빌더가 MD/인덱스를 생성한다.
 
 ```jsonc
 {
-  "report_id": "2026-01-15_미래에셋_LGES",   // = 파일명(확장자 제외)
-  "date": "2026-01-15", "house": "미래에셋", "analyst": null,
-  "coverage": "LGES",            // LGES | 삼성SDI | SK온 | 산업
-  "report_type": "기업",          // 기업 | 산업
-  "opinion": "매수",              // 매수 | 중립 | 매도 | null(산업)
-  "target_price": 450000, "prev_target_price": 420000,
-  "key_issues": ["LFP", "북미CAPEX"],
-  "top_picks": [],                            // 산업 리포트만
-  "estimates": [ { /* company, segment, segment_std, fy, period, metric, value, unit, ampc_basis, page */ } ],
-  "stances":   [ { /* issue, company, stance_score, summary, page */ } ],
-  "industry_views": [ { /* 정성 산업 전망: scope, fy, metric, value, unit, direction, summary, page */ } ],
-  "demand_forecasts": [ /* 정량 시장 전망: 기업/산업 리포트 모두 허용 — NORMALIZATION.md §8 */ ],
-  "themes":          [ /* 산업 v3 — NORMALIZATION.md §8 */ ],
-  "body": { "summary": "...", "valuation": "...", "segment_pl": "...",
-            "issue_comments": "...", "risks": "...", "quotes": "..." }
+  "report_id": "2026-01-15_미래에셋_LGES",
+  "date": "2026-01-15",
+  "house": "미래에셋",
+  "analyst": null,
+  "coverage": "LGES",
+  "report_type": "기업",
+  "opinion": "매수",
+  "target_price": 450000,
+  "prev_target_price": 420000,
+  "key_issues": ["ESS", "북미CAPEX"],
+  "top_picks": [],
+  "estimates": [],
+  "stances": [],
+  "industry_views": [],
+  "demand_forecasts": [
+    {
+      "region": "북미",
+      "application": "ESS",
+      "region_raw": "미국",
+      "region_std": "US",
+      "application_raw": "AIDC향 ESS",
+      "application_std": "Data Center",
+      "application_detail": "BESS",
+      "metric": "수요량",
+      "forecast_type": "demand",
+      "fy": 2030,
+      "value": 160,
+      "value_low": null,
+      "value_high": null,
+      "value_prev": null,
+      "unit": "GWh",
+      "basis": "미국 AIDC향 ESS 수요",
+      "source_org": "미래에셋",
+      "source_name": null,
+      "source_type": "broker_estimate",
+      "page": 5,
+      "verification_status": "pdf_verified"
+    }
+  ],
+  "company_metrics": [
+    {
+      "company": "CATL",
+      "entity_type": "company",
+      "company_group": "China",
+      "region_raw": "미국",
+      "region_std": "US",
+      "application_raw": "Utility-Grid ESS",
+      "application_std": "Grid",
+      "application_detail": "Utility",
+      "metric": "market_share",
+      "fy": 2027,
+      "value": 40,
+      "value_low": null,
+      "value_high": null,
+      "unit": "%",
+      "basis": "미국 Utility/Grid ESS",
+      "source_org": "미래에셋",
+      "source_type": "broker_estimate",
+      "page": 7,
+      "verification_status": "pdf_verified"
+    }
+  ],
+  "themes": [],
+  "body": {
+    "summary": "...",
+    "valuation": "...",
+    "segment_pl": "...",
+    "issue_comments": "...",
+    "risks": "...",
+    "quotes": "..."
+  }
 }
 ```
 
-**분류 원칙**
-- `demand_forecasts`: 시장 전체 또는 명시된 서브시장의 정량 전망. 기업 리포트에도 존재하면 반드시 수집 가능.
-- 특정 회사의 ESS 매출·출하량·CAPA·수주잔고·점유율: 회사 데이터이므로 `demand_forecasts`에 넣지 않는다.
-- 숫자 없는 시장 방향성/논거: `industry_views` 또는 `themes`에 둔다.
-- 시장 수치인지 회사 수치인지 애매하면 `demand_forecasts`에 넣지 않고 원문 페이지를 재확인한다.
+## ESS 분류 원칙
 
-**`body` 6개 키 → MD 섹션 매핑** (키 이름이 틀리면 그 섹션이 **오류 없이 빈 채로** 생성된다)
+상세 규칙은 `schema/ESS_INTELLIGENCE.md`를 따른다.
+
+- 시장 전체/서브시장 정량 전망 → `demand_forecasts`
+- LGES·삼성SDI·SK온·CATL·BYD 등 특정 회사/그룹의 CAPA·출하량·수주잔고·시장점유율 → `company_metrics`
+- 숫자 없는 시장 방향성 → `industry_views` / `themes`
+- `region_raw`와 `region_std`를 모두 보존. 미국과 북미를 임의 통합하지 않는다.
+- `application_raw`와 `application_std/detail`을 모두 보존.
+- `application_std`: `Total | Grid | Data Center | C&I | Residential | Other`
+- Data Center의 BESS/UPS/BBU는 `application_detail`로 구분한다.
+- 같은 외부기관 전망 재인용을 식별하도록 `source_org`와 `source_type`을 기록한다.
+- 범위 전망은 `value=null`, `value_low`, `value_high`를 사용한다.
+- 시장 `demand/shipment/installation/capacity`를 동일 GWh라고 합치지 않는다.
+- 기존 MD에서 backfill한 값은 `md_backfill`; 원본 PDF를 직접 확인한 값은 `pdf_verified`.
+
+## body 키 → MD 섹션
 
 | body 키 | MD 섹션 |
 |---|---|
@@ -104,8 +165,13 @@ source_pdf: inbox/미래에셋_20260115.pdf   # 원본 경로 (모든 숫자의 
 | `risks` | `## 리스크 요인` |
 | `quotes` | `## 원문 인용` |
 
-- 각 값은 문자열 또는 문자열 리스트(리스트는 개행으로 결합된다). `null`은 빈 섹션이 된다.
-- `estimates`·`stances`의 값 규칙(단위 십억원, segment_std, ampc_basis, metric 통제어휘,
-  stance_score −10~+10)은 `NORMALIZATION.md` 를 따른다.
-- 작성 후 반드시 `python3 tools/build_indexes.py --check` 로 경고를 확인한다.
-  `metric 비표준`·`segment_std 강제`·`stance_score 범위 밖` 경고는 **데이터가 새는 신호**다.
+## 빌드/검증
+
+신규 인제스트는 다음을 권장한다.
+
+```bash
+python3 tools/build_all.py --check
+python3 tools/build_all.py
+```
+
+`build_all.py`는 기존 웹사이트용 인덱스와 ESS 확장 인덱스를 모두 생성한다.
