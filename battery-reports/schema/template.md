@@ -16,6 +16,8 @@ prev_target_price: 420000               # 직전 목표주가(원). 상향/하�
 # 세그먼트/전사 손익·추정치. estimates.csv 로도 펼쳐진다. (스키마 v2)
 # segment: 원문 그대로 / segment_std: NORMALIZATION.md 매핑 / period: FY|1Q~4Q
 # ampc_basis: excl|incl|incl_unknown|na / AMPC 금액은 metric=AMPC 별도 행
+# 중요: 특정 회사의 ESS 매출·출하·CAPA·수주 등 회사 데이터는 estimates/stances/industry_views에 두며,
+# 시장 전체의 정량 수요 전망과 섞지 않는다.
 estimates:
   - {company: LGES, segment: 전사, segment_std: 전사, fy: 2026, period: FY, metric: 영업이익, value: 993, unit: 십억원, ampc_basis: incl, page: 3}
   - {company: LGES, segment: 전사, segment_std: 전사, fy: 2026, period: FY, metric: AMPC, value: 1425, unit: 십억원, ampc_basis: na, page: 3}
@@ -28,9 +30,14 @@ stances:
   - {issue: 북미CAPEX, company: LGES, stance_score: -4, summary: "IRA 불확실성으로 증설 속도 조절 가능성", page: 6}
 
 key_issues: [LFP, 북미CAPEX, 수율]        # 이 리포트가 다룬 이슈 태그
-# 산업 리포트/산업 전망 포함 시 (없으면 빈 리스트)
+# 정성적 산업 전망. 기업/산업 리포트 모두 허용한다.
 industry_views:
   - {scope: 북미ESS, fy: 2026, metric: 수요, value: null, unit: GWh, direction: 2, summary: "AI 데이터센터發 수요 급증", page: 2}
+# 정량 시장 수요 전망. report_type과 무관하게 기업/산업 리포트 모두 허용한다.
+# 반드시 '시장 전체/서브시장' 전망만 저장한다. LGES·삼성SDI·SK온·CATL 등 특정 회사의
+# ESS 매출·출하량·CAPA·수주잔고는 demand_forecasts에 넣지 않는다.
+demand_forecasts:
+  - {region: 북미, application: ESS, metric: 수요량, fy: 2026, value: 60, value_prev: null, unit: GWh, basis: "북미 ESS 시장 전체", page: 2}
 top_picks: []                             # 산업 리포트의 최선호주
 source_pdf: inbox/미래에셋_20260115.pdf   # 원본 경로 (모든 숫자의 감사 추적용)
 ---
@@ -72,13 +79,19 @@ source_pdf: inbox/미래에셋_20260115.pdf   # 원본 경로 (모든 숫자의 
   "top_picks": [],                            // 산업 리포트만
   "estimates": [ { /* company, segment, segment_std, fy, period, metric, value, unit, ampc_basis, page */ } ],
   "stances":   [ { /* issue, company, stance_score, summary, page */ } ],
-  "industry_views": [ { /* scope, fy, metric, value, unit, direction, summary, page */ } ],
-  "demand_forecasts": [ /* 산업 v3 — NORMALIZATION.md §8 */ ],
+  "industry_views": [ { /* 정성 산업 전망: scope, fy, metric, value, unit, direction, summary, page */ } ],
+  "demand_forecasts": [ /* 정량 시장 전망: 기업/산업 리포트 모두 허용 — NORMALIZATION.md §8 */ ],
   "themes":          [ /* 산업 v3 — NORMALIZATION.md §8 */ ],
   "body": { "summary": "...", "valuation": "...", "segment_pl": "...",
             "issue_comments": "...", "risks": "...", "quotes": "..." }
 }
 ```
+
+**분류 원칙**
+- `demand_forecasts`: 시장 전체 또는 명시된 서브시장의 정량 전망. 기업 리포트에도 존재하면 반드시 수집 가능.
+- 특정 회사의 ESS 매출·출하량·CAPA·수주잔고·점유율: 회사 데이터이므로 `demand_forecasts`에 넣지 않는다.
+- 숫자 없는 시장 방향성/논거: `industry_views` 또는 `themes`에 둔다.
+- 시장 수치인지 회사 수치인지 애매하면 `demand_forecasts`에 넣지 않고 원문 페이지를 재확인한다.
 
 **`body` 6개 키 → MD 섹션 매핑** (키 이름이 틀리면 그 섹션이 **오류 없이 빈 채로** 생성된다)
 
