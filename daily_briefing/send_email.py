@@ -1,4 +1,5 @@
 import re
+from html import escape
 from datetime import datetime, timedelta, timezone
 
 from config import RECIPIENT_EMAIL, CATEGORIES
@@ -40,19 +41,26 @@ def _render_insight_html(insight_text: str) -> str:
     for line in insight_text.split("\n"):
         if not line.strip():
             continue
+        safe_line = escape(line)
         if line.startswith("## "):
-            heading = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', line[3:].strip())
+            heading = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', safe_line[3:].strip())
             lines.append(
                 f"<p style='margin:20px 0 4px 0;font-weight:bold;font-size:15px;"
                 f"color:#1a1a1a;border-left:3px solid #1a73e8;padding-left:8px'>{heading}</p>"
             )
         else:
-            rendered = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', line)
+            rendered = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', safe_line)
             lines.append(f"<p style='margin:0 0 10px 0'>{rendered}</p>")
     return "".join(lines)
 
 
-def build_email(articles: list[dict], insight_text: str, top_article: dict, date_str: str) -> dict:
+def build_email(
+    articles: list[dict],
+    insight_text: str,
+    top_article: dict,
+    date_str: str,
+    recipients: list[str] | None = None,
+) -> dict:
     """이메일 파라미터(to/subject/htmlBody)를 반환한다.
 
     Gmail API 자동 발송(run.py) 및 발송 실패 시 Gmail MCP create_draft 폴백에
@@ -70,8 +78,10 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
     article_rows = ""
     prev_cat = None
     for a in sorted_articles:
-        summary = a.get("summary", "").replace("\\n", "<br>").replace("\n", "<br>")
-        cat = a.get("category", "")
+        summary = escape(str(a.get("summary", ""))).replace("\\n", "<br>").replace("\n", "<br>")
+        cat = escape(str(a.get("category", "")))
+        title = escape(str(a["title"]))
+        url = escape(str(a.get("url", "")), quote=True)
         date_str_cell = _format_date_kst(a.get("publishedAt", ""))
         score = a.get("impact_score", 0)
         cat_bg = ' style="background:#fafafa"' if cat != prev_cat else ""
@@ -81,13 +91,17 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
           <td style="padding:8px;border:1px solid #ddd;color:#555;font-size:12px">{cat}</td>
           <td style="padding:8px;border:1px solid #ddd;color:#555;font-size:12px;white-space:nowrap">{date_str_cell}</td>
           <td style="padding:8px;border:1px solid #ddd;font-size:13px">
-            <a href="{a.get('url','')}" style="color:#1a73e8;text-decoration:none">{a['title']}</a><br>
+            <a href="{url}" style="color:#1a73e8;text-decoration:none">{title}</a><br>
             <span style="color:#666;font-size:12px">{summary}</span>
           </td>
           <td style="padding:8px;border:1px solid #ddd;text-align:center;white-space:nowrap">{_impact_circle(score)}</td>
         </tr>"""
 
     insight_html = _render_insight_html(insight_text)
+    safe_date = escape(date_str)
+    safe_top_title = escape(str(top_article["title"]))
+    safe_top_category = escape(str(top_article.get("category", "")))
+    safe_top_score = escape(str(top_article.get("impact_score", "")))
 
     html_body = f"""
 <html>
@@ -99,7 +113,7 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
 <body style="font-family:'Noto Sans KR',Arial,sans-serif;max-width:800px;margin:0 auto;color:#333">
 
 <h2 style="color:#1a1a1a;border-bottom:2px solid #1a73e8;padding-bottom:8px">
-  📰 AI Morning Brief — {date_str}
+  📰 AI Morning Brief — {safe_date}
 </h2>
 <p style="color:#888;font-size:12px">EV · 배터리 · ESS 핵심 동향 | AI 자동생성 브리핑</p>
 
@@ -116,8 +130,8 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
 
 <h3 style="color:#333;margin-top:32px">🔍 주목 기사 인사이트</h3>
 <p style="background:#f0f4ff;padding:12px;border-left:4px solid #1a73e8;font-weight:bold">
-  {top_article['title']}
-  <span style="font-weight:normal;color:#888;font-size:12px"> | {top_article.get('category','')} | Impact Score: {top_article.get('impact_score','')}/10</span>
+  {safe_top_title}
+  <span style="font-weight:normal;color:#888;font-size:12px"> | {safe_top_category} | Impact Score: {safe_top_score}/10</span>
 </p>
 <div style="line-height:1.8">
   {insight_html}
@@ -125,12 +139,12 @@ def build_email(articles: list[dict], insight_text: str, top_article: dict, date
 
 <hr style="margin-top:40px;border:none;border-top:1px solid #eee">
 <p style="color:#aaa;font-size:11px;text-align:center">
-  본 브리핑은 Claude AI가 자동 생성한 콘텐츠입니다. | {date_str} KST 09:00 기준
+  본 브리핑은 Codex AI가 자동 생성한 콘텐츠입니다. | {safe_date} KST 09:00 기준
 </p>
 </body></html>"""
 
     return {
-        "to": RECIPIENT_EMAIL if isinstance(RECIPIENT_EMAIL, list) else [RECIPIENT_EMAIL],
+        "to": recipients or (RECIPIENT_EMAIL if isinstance(RECIPIENT_EMAIL, list) else [RECIPIENT_EMAIL]),
         "subject": subject,
         "htmlBody": html_body,
     }

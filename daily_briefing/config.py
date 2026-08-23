@@ -1,9 +1,5 @@
 RECIPIENT_EMAIL = [
     "jupiter@sk.com",
-    "hc.yoon@sk.com",
-    "lee.hojeong@sk.com",
-    "hoyoonlee@sk.com",
-    "jslim27@sk.com",
 ]
 SENDER_EMAIL = "kjwgv1442@gmail.com"
 
