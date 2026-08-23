@@ -4,7 +4,7 @@
 > 세션에서 프롬프트 원문을 직접 확인/수정하기 어려운 경우를 대비해, 브랜치에 커밋해 보존합니다.
 > 아래 코드블록의 내용은 실제 트리거 프롬프트 원문(verbatim)이며, 수정 시 이 파일을 편집한 뒤 스케줄 설정에 반영하세요.
 >
-> - 대상 브랜치: `daily-news-briefing-v1`
+> - 대상 브랜치: `main`
 > - 최종 백업 일자: 2026-07-14 (KST)
 > - ⚠️ **중요:** 이 트리거 프롬프트는 자기완결형이며, 저장소의 다른 문서를 자동으로 읽지 않습니다.
 >   내용을 고쳐도 그대로는 반영되지 않으므로, 수정 시
@@ -15,7 +15,7 @@
 ```text
 # Daily EV/Battery News Briefing 루틴
 ## 준비
-1. git fetch origin daily-news-briefing-v1 && git checkout daily-news-briefing-v1
+1. git fetch origin main && git checkout main
 2. 새 브랜치 생성 / 커밋 / 푸시 하지 말 것 (이 브랜치는 읽기 전용으로 실행)
 ## 실행 순서
 ### Step 1 — 시간 범위 확인
