@@ -54,6 +54,30 @@ def _render_insight_html(insight_text: str) -> str:
     return "".join(lines)
 
 
+def _render_plain_text(articles: list[dict], insight_text: str, date_str: str) -> str:
+    """HTML을 표시하지 못하는 수신자를 위한 텍스트 대체 본문을 만든다."""
+    lines = [
+        f"AI Morning Brief — {date_str}",
+        "EV · 배터리 · ESS 핵심 동향 | AI 자동생성 브리핑",
+        "",
+        "오늘의 주요 기사",
+    ]
+    for article in articles:
+        summary = str(article.get("summary", "")).replace("\\n", "\n")
+        lines.extend(
+            [
+                "",
+                f"[{article.get('category', '')}] {_format_date_kst(article.get('publishedAt', ''))} "
+                f"| Impact Score: {article.get('impact_score', '')}/10",
+                str(article.get("title", "")),
+                str(article.get("url", "")),
+                summary,
+            ]
+        )
+    lines.extend(["", "주목 기사 인사이트", "", insight_text, "", f"{date_str} KST 09:00 기준"])
+    return "\n".join(lines)
+
+
 def build_email(
     articles: list[dict],
     insight_text: str,
@@ -61,7 +85,7 @@ def build_email(
     date_str: str,
     recipients: list[str] | None = None,
 ) -> dict:
-    """이메일 파라미터(to/subject/htmlBody)를 반환한다.
+    """이메일 파라미터(to/subject/textBody/htmlBody)를 반환한다.
 
     Gmail API 자동 발송(run.py) 및 발송 실패 시 Gmail MCP create_draft 폴백에
     공통으로 사용된다.
@@ -74,6 +98,8 @@ def build_email(
         articles,
         key=lambda a: (cat_order.get(a.get("category", ""), 99), -a.get("impact_score", 0)),
     )
+
+    text_body = _render_plain_text(sorted_articles, insight_text, date_str)
 
     article_rows = ""
     prev_cat = None
@@ -146,5 +172,6 @@ def build_email(
     return {
         "to": recipients or (RECIPIENT_EMAIL if isinstance(RECIPIENT_EMAIL, list) else [RECIPIENT_EMAIL]),
         "subject": subject,
+        "textBody": text_body,
         "htmlBody": html_body,
     }

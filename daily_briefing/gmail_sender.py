@@ -13,9 +13,8 @@ requests 는 HTTPS_PROXY / REQUESTS_CA_BUNDLE 환경변수를 자동으로 따�
 """
 import os
 import base64
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
-import requests
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
@@ -23,6 +22,8 @@ SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 
 def _get_access_token() -> str:
     """refresh token 으로 단기 access token 을 발급받는다."""
+    import requests
+
     client_id = os.environ["GMAIL_CLIENT_ID"]
     client_secret = os.environ["GMAIL_CLIENT_SECRET"]
     refresh_token = os.environ["GMAIL_REFRESH_TOKEN"]
@@ -41,13 +42,26 @@ def _get_access_token() -> str:
     return resp.json()["access_token"]
 
 
-def send_email_via_api(to: list[str], subject: str, html_body: str) -> str:
-    """Gmail API 로 HTML 메일을 발송하고 message id 를 반환한다."""
-    access_token = _get_access_token()
-
-    msg = MIMEText(html_body, "html", "utf-8")
+def build_mime_message(
+    to: list[str], subject: str, text_body: str, html_body: str
+) -> MIMEMultipart:
+    """텍스트와 HTML을 모두 담은 multipart/alternative 메시지를 만든다."""
+    msg = MIMEMultipart("alternative")
     msg["To"] = ", ".join(to)
     msg["Subject"] = subject
+    msg.attach(MIMEText(text_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    return msg
+
+
+def send_email_via_api(
+    to: list[str], subject: str, text_body: str, html_body: str
+) -> str:
+    """Gmail API 로 multipart/alternative 메일을 발송하고 message id 를 반환한다."""
+    import requests
+
+    access_token = _get_access_token()
+    msg = build_mime_message(to, subject, text_body, html_body)
 
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
 

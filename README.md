@@ -5,9 +5,9 @@ Codex 예약 작업으로 매일 아침(KST 09:00) EV·배터리·ESS 업계 뉴
 ## 동작 개요
 
 1. 저장소 전용 `$daily-news-briefing` Skill이 검색·선별·중복 방지 규칙을 제공합니다.
-2. Codex가 Exa를 우선 사용해 전날 09:00부터 오늘 09:00까지의 뉴스를 수집하고 JSON을 만듭니다.
-3. `daily_briefing/run.py`가 입력을 검증하고 외부 텍스트를 이스케이프해 HTML을 생성합니다.
-4. 예약 작업이 연결된 Gmail을 통해 `jupiter@sk.com`으로 1회 발송합니다.
+2. Codex가 Exa 고급검색을 우선 사용해 전날 09:00부터 오늘 09:00까지의 뉴스 10~15건을 수집하고 JSON을 만듭니다. 8건 미만이면 발송하지 않습니다.
+3. `daily_briefing/run.py`가 입력을 검증하고 외부 텍스트를 이스케이프해 텍스트·HTML 본문을 생성합니다.
+4. 예약 작업이 연결된 Gmail을 통해 `multipart/alternative` 형식으로 `jupiter@sk.com`에 1회 발송합니다.
 
 ## 폴더 구조
 

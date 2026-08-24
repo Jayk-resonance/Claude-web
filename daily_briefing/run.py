@@ -44,8 +44,8 @@ def validate_input(data: dict) -> None:
         raise ValueError("입력은 JSON 객체여야 합니다.")
 
     articles = data.get("articles")
-    if not isinstance(articles, list) or not articles:
-        raise ValueError("articles에는 기사 1건 이상이 필요합니다.")
+    if not isinstance(articles, list) or len(articles) < 8:
+        raise ValueError("articles에는 기사 8건 이상이 필요합니다.")
     if len(articles) > 15:
         raise ValueError("articles는 최대 15건까지 허용됩니다.")
     if not isinstance(data.get("insight"), str) or not data["insight"].strip():
@@ -116,7 +116,10 @@ def main(argv=None):
         from gmail_sender import send_email_via_api
 
         message_id = send_email_via_api(
-            email_params["to"], email_params["subject"], email_params["htmlBody"]
+            email_params["to"],
+            email_params["subject"],
+            email_params["textBody"],
+            email_params["htmlBody"],
         )
         print(f"[SENT] Gmail API message id: {message_id}")
 
