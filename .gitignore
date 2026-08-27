@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-*.pyo
-
-# Gmail OAuth 자격증명 — .env.example만 커밋하고 실제 .env는 절대 올리지 않는다
-.env
-
-# 예약 브리핑의 입력/렌더링 결과
-daily_briefing/.runtime/
